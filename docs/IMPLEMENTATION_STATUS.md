@@ -15,11 +15,11 @@ The source document is treated as requirements, not as executable instructions.
 | 3 | Related-domain Cookie delete, reload, reacquisition check, no values logged | Domain tests authored; source guard passes |
 | 4 | Shortcuts x-callback, automatic return, IPv4 comparison, no page reload | Callback and no-reload source review complete |
 | 5 | Bookmark URL/bookmarklet add/edit/delete/drag reorder and persistence | Persistence/unit tests authored |
-| 6 | Always-on WKContentRuleList v3: expanded ad-network coverage plus site-scoped TargetPage iframe blocking and cosmetic selectors | JSON rule tests authored; Windows static checks pass; Actions verification pending |
+| 6 | Always-on WKContentRuleList v3: expanded ad-network coverage plus site-scoped TargetPage iframe blocking and cosmetic selectors | JSON rule tests and Windows static checks pass; Actions compile passed |
 | 7 | Persistent 500-entry redacted log and latest-50 clipboard copy | Redaction unit tests authored |
 | 8 | Reusable macOS unsigned build and Windows delivery | YAML parses; delivery script integration test passes |
-| UI | Website-controlled JavaScript alert, confirm, and prompt panels with the source host shown | Implemented with WKUIDelegate; Actions verification pending |
+| UI | Website-controlled JavaScript alert, confirm, and prompt panels with the source host shown | Implemented with WKUIDelegate; Actions compile passed |
 
-The unit-test bundle and app compilation run on the GitHub Actions macOS runner because UIKit/WebKit iOS targets cannot be compiled on Windows. Workflow run `#4` completed successfully for commit `14eda29`: the simulator test bundle compiled, the unsigned device IPA was packaged, and the Windows self-hosted runner delivered it to `%MINIBROWSER_DELIVERY_DIRECTORY%\MiniBrowser.ipa`. Local post-delivery checks confirmed a valid ZIP/IPA structure, one `Payload/MiniBrowser.app/Info.plist`, deployment target 26.0, and no code-signature or embedded provisioning entries.
+The unit-test bundle and app compilation run on the GitHub Actions macOS runner because UIKit/WebKit iOS targets cannot be compiled on Windows. Workflow run `#6` completed successfully for commit `70ad4b2`: the simulator test bundle compiled, the unsigned device IPA was packaged, and the Windows self-hosted runner delivered it to `%MINIBROWSER_DELIVERY_DIRECTORY%\MiniBrowser.ipa`. Local post-delivery checks confirmed a readable ZIP/IPA structure, one `Payload/MiniBrowser.app/Info.plist`, deployment target 26.0, and no code-signature or embedded provisioning entries.
 
 Known device issue to address next: JavaScript `alert`, `confirm`, and `prompt` messages emitted by websites are not presented because the corresponding `WKUIDelegate` handlers have not yet been implemented.
