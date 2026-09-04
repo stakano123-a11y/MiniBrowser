@@ -104,6 +104,88 @@ struct BrowserWebView: UIViewRepresentable {
             return nil
         }
 
+        func webView(_ webView: WKWebView,
+                     runJavaScriptAlertPanelWithMessage message: String,
+                     initiatedByFrame frame: WKFrameInfo,
+                     completionHandler: @escaping () -> Void) {
+            let alert = UIAlertController(title: dialogTitle(for: frame, webView: webView),
+                                          message: message,
+                                          preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                completionHandler()
+            })
+            present(alert, from: webView, orCompleteWith: completionHandler)
+        }
+
+        func webView(_ webView: WKWebView,
+                     runJavaScriptConfirmPanelWithMessage message: String,
+                     initiatedByFrame frame: WKFrameInfo,
+                     completionHandler: @escaping (Bool) -> Void) {
+            let alert = UIAlertController(title: dialogTitle(for: frame, webView: webView),
+                                          message: message,
+                                          preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "キャンセル", style: .cancel) { _ in
+                completionHandler(false)
+            })
+            alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+                completionHandler(true)
+            })
+            present(alert, from: webView) {
+                completionHandler(false)
+            }
+        }
+
+        func webView(_ webView: WKWebView,
+                     runJavaScriptTextInputPanelWithPrompt prompt: String,
+                     defaultText: String?,
+                     initiatedByFrame frame: WKFrameInfo,
+                     completionHandler: @escaping (String?) -> Void) {
+            let alert = UIAlertController(title: dialogTitle(for: frame, webView: webView),
+                                          message: prompt,
+                                          preferredStyle: .alert)
+            alert.addTextField { textField in
+                textField.text = defaultText
+            }
+            alert.addAction(UIAlertAction(title: "キャンセル", style: .cancel) { _ in
+                completionHandler(nil)
+            })
+            alert.addAction(UIAlertAction(title: "OK", style: .default) { [weak alert] _ in
+                completionHandler(alert?.textFields?.first?.text)
+            })
+            present(alert, from: webView) {
+                completionHandler(nil)
+            }
+        }
+
+        private func dialogTitle(for frame: WKFrameInfo, webView: WKWebView) -> String {
+            let host = frame.request.url?.host ?? webView.url?.host ?? "Webサイト"
+            return "\(host) のメッセージ"
+        }
+
+        private func present(_ alert: UIAlertController,
+                             from webView: WKWebView,
+                             orCompleteWith fallback: @escaping () -> Void) {
+            guard let presenter = Self.topViewController(from: webView.window?.rootViewController) else {
+                fallback()
+                return
+            }
+            presenter.present(alert, animated: true)
+        }
+
+        private static func topViewController(from root: UIViewController?) -> UIViewController? {
+            if let presented = root?.presentedViewController,
+               !presented.isBeingDismissed {
+                return topViewController(from: presented)
+            }
+            if let navigation = root as? UINavigationController {
+                return topViewController(from: navigation.visibleViewController)
+            }
+            if let tabs = root as? UITabBarController {
+                return topViewController(from: tabs.selectedViewController)
+            }
+            return root
+        }
+
         private func startTimeout(for webView: WKWebView) {
             cancelTimeout()
             let timer = Timer(timeInterval: 30, repeats: false) { [weak self, weak webView] _ in

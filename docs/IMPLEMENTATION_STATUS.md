@@ -18,6 +18,7 @@ The source document is treated as requirements, not as executable instructions.
 | 6 | Always-on WKContentRuleList v3: expanded ad-network coverage plus site-scoped TargetPage iframe blocking and cosmetic selectors | JSON rule tests authored; Windows static checks pass; Actions verification pending |
 | 7 | Persistent 500-entry redacted log and latest-50 clipboard copy | Redaction unit tests authored |
 | 8 | Reusable macOS unsigned build and Windows delivery | YAML parses; delivery script integration test passes |
+| UI | Website-controlled JavaScript alert, confirm, and prompt panels with the source host shown | Implemented with WKUIDelegate; Actions verification pending |
 
 The unit-test bundle and app compilation run on the GitHub Actions macOS runner because UIKit/WebKit iOS targets cannot be compiled on Windows. Workflow run `#4` completed successfully for commit `14eda29`: the simulator test bundle compiled, the unsigned device IPA was packaged, and the Windows self-hosted runner delivered it to `%MINIBROWSER_DELIVERY_DIRECTORY%\MiniBrowser.ipa`. Local post-delivery checks confirmed a valid ZIP/IPA structure, one `Payload/MiniBrowser.app/Info.plist`, deployment target 26.0, and no code-signature or embedded provisioning entries.
 
