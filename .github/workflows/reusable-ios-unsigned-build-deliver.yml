@@ -1,0 +1,193 @@
+name: Reusable unsigned iOS build and Windows delivery
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: App bundle name produced by xcodebuild
+        required: true
+        type: string
+      scheme:
+        description: Optional Xcode scheme override; defaults to app_name
+        required: false
+        default: ''
+        type: string
+      project_path:
+        description: Optional Xcode project override; defaults to app_name.xcodeproj
+        required: false
+        default: ''
+        type: string
+      artifact_name:
+        description: GitHub Actions artifact name
+        required: true
+        type: string
+      ipa_filename:
+        description: Optional built IPA filename; defaults to destination_filename
+        required: false
+        default: ''
+        type: string
+      destination_directory:
+        description: Existing directory on the Windows runner
+        required: false
+        default: '%MINIBROWSER_DELIVERY_DIRECTORY%'
+        type: string
+      destination_filename:
+        description: Final IPA filename on Windows
+        required: true
+        type: string
+      macos_runner:
+        description: GitHub-hosted macOS runner label
+        required: false
+        default: macos-26
+        type: string
+      windows_runner_labels:
+        description: JSON array of Windows self-hosted runner labels
+        required: false
+        default: '["self-hosted","Windows","X64","ios-ipa-delivery"]'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: ${{ inputs.macos_runner }}
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Show build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          sw_vers
+          xcodebuild -version
+          xcodebuild -showsdks
+
+      - name: Install XcodeGen when missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Generate Xcode project
+        shell: bash
+        run: xcodegen generate
+
+      - name: Compile unit tests for iOS Simulator
+        shell: bash
+        env:
+          PROJECT_PATH: ${{ inputs.project_path || format('{0}.xcodeproj', inputs.app_name) }}
+          SCHEME: ${{ inputs.scheme || inputs.app_name }}
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build-tests \
+            CODE_SIGNING_ALLOWED=NO \
+            build-for-testing
+
+      - name: Build without code signing
+        shell: bash
+        env:
+          PROJECT_PATH: ${{ inputs.project_path || format('{0}.xcodeproj', inputs.app_name) }}
+          SCHEME: ${{ inputs.scheme || inputs.app_name }}
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "$PROJECT_PATH" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY='' \
+            build
+
+      - name: Package and verify unsigned IPA
+        shell: bash
+        env:
+          APP_NAME: ${{ inputs.app_name }}
+          IPA_FILENAME: ${{ inputs.ipa_filename || inputs.destination_filename }}
+        run: |
+          set -euo pipefail
+          APP_PATH="build/Build/Products/Release-iphoneos/${APP_NAME}.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Built app not found: $APP_PATH"
+            exit 1
+          fi
+          if codesign -dv "$APP_PATH" >/dev/null 2>&1; then
+            echo "The app is unexpectedly signed."
+            exit 1
+          fi
+
+          rm -rf package
+          mkdir -p package/Payload artifacts
+          ditto "$APP_PATH" "package/Payload/${APP_NAME}.app"
+          (cd package && /usr/bin/zip -qry "../artifacts/${IPA_FILENAME}" Payload)
+          shasum -a 256 "artifacts/${IPA_FILENAME}" > "artifacts/${IPA_FILENAME}.sha256"
+          unzip -t "artifacts/${IPA_FILENAME}"
+
+      - name: Upload IPA without an extra ZIP wrapper
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: artifacts/${{ inputs.ipa_filename || inputs.destination_filename }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload SHA-256
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact_name }}-sha256
+          path: artifacts/${{ inputs.ipa_filename || inputs.destination_filename }}.sha256
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
+
+  deliver:
+    name: Deliver IPA to iCloud Drive
+    needs: build
+    runs-on: ${{ fromJSON(inputs.windows_runner_labels) }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out delivery script
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Download IPA artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ runner.temp }}\ipa-delivery-${{ github.run_id }}
+
+      - name: Validate and copy IPA
+        shell: pwsh
+        env:
+          SOURCE_DIRECTORY: ${{ runner.temp }}\ipa-delivery-${{ github.run_id }}
+          IPA_FILENAME: ${{ inputs.ipa_filename || inputs.destination_filename }}
+          DESTINATION_DIRECTORY: ${{ inputs.destination_directory }}
+          DESTINATION_FILENAME: ${{ inputs.destination_filename }}
+        run: |
+          & "$env:GITHUB_WORKSPACE\scripts\Deliver-Ipa.ps1" `
+            -SourceDirectory $env:SOURCE_DIRECTORY `
+            -SourceFileName $env:IPA_FILENAME `
+            -DestinationDirectory $env:DESTINATION_DIRECTORY `
+            -DestinationFileName $env:DESTINATION_FILENAME
