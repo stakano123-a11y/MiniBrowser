@@ -6,12 +6,14 @@ The workflow performs the iOS build only on GitHub's `macos-26` runner. The Wind
 
 1. Create or select the GitHub repository that contains this project.
 2. In that repository, open **Settings → Actions → Runners → New self-hosted runner**.
-3. Choose **Windows / x64** and run GitHub's generated commands in an elevated PowerShell window. GitHub recommends `C:\actions-runner` for service installations.
-4. During configuration, add the custom label `ios-ipa-delivery` and install the runner as a Windows service if delivery should work without an open terminal.
+3. Choose **Windows / x64** and run GitHub's generated commands. GitHub recommends `C:\actions-runner` to avoid path and service-identity issues.
+4. During configuration, add the custom label `ios-ipa-delivery`. For an iCloud destination, run under the signed-in Windows user: either use a service configured with that account, or create a logon task that starts `C:\actions-runner\run.cmd` hidden.
 5. Confirm that the runner has all four labels: `self-hosted`, `Windows`, `X64`, and `ios-ipa-delivery`.
 6. Keep the runner current enough for Node 24-based actions (`actions/checkout@v6` requires runner 2.329.0 or later for all supported scenarios).
 7. Confirm that the service account can write to `%MINIBROWSER_DELIVERY_DIRECTORY%`. Running the service under a system account may not have access to the signed-in user's iCloud Drive; use the signed-in user account if necessary.
 8. Confirm the directory already exists. The delivery script intentionally does not create or guess a replacement iCloud path.
+
+On this PC the runner is registered as `MiniBrowser-Windows`. Task Scheduler entry `GitHub Actions MiniBrowser Delivery` starts it at logon as user `staka`, with limited privileges. This avoids granting a system service access to the user's iCloud Drive. The runner must remain online for delivery; the macOS build can still finish while it is offline, and the delivery job will wait.
 
 The registration token shown by GitHub is short-lived. Do not commit it, an Apple ID, a password, a certificate, a provisioning profile, a pairing file, or a device identifier.
 
