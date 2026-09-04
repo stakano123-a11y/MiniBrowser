@@ -14,5 +14,4 @@ jobs:
     uses: ./.github/workflows/reusable-ios-unsigned-build-deliver.yml
     with:
       app_name: MiniBrowser
-      artifact_name: MiniBrowser-unsigned-ipa
       destination_filename: MiniBrowser.ipa

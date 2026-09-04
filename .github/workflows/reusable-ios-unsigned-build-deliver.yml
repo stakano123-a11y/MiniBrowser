@@ -17,10 +17,6 @@ on:
         required: false
         default: ''
         type: string
-      artifact_name:
-        description: GitHub Actions artifact name
-        required: true
-        type: string
       ipa_filename:
         description: Optional built IPA filename; defaults to destination_filename
         required: false
@@ -145,7 +141,6 @@ jobs:
       - name: Upload IPA without an extra ZIP wrapper
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ inputs.artifact_name }}
           path: artifacts/${{ inputs.ipa_filename || inputs.destination_filename }}
           archive: false
           if-no-files-found: error
@@ -154,7 +149,6 @@ jobs:
       - name: Upload SHA-256
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ inputs.artifact_name }}-sha256
           path: artifacts/${{ inputs.ipa_filename || inputs.destination_filename }}.sha256
           archive: false
           if-no-files-found: error
@@ -175,7 +169,8 @@ jobs:
       - name: Download IPA artifact
         uses: actions/download-artifact@v8
         with:
-          name: ${{ inputs.artifact_name }}
+          # Direct uploads (`archive: false`) use the filename as the artifact name.
+          name: ${{ inputs.ipa_filename || inputs.destination_filename }}
           path: ${{ runner.temp }}\ipa-delivery-${{ github.run_id }}
 
       - name: Validate and copy IPA

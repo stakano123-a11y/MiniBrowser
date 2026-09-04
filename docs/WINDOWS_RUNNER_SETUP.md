@@ -17,7 +17,7 @@ The registration token shown by GitHub is short-lived. Do not commit it, an Appl
 
 ## Reuse for another iOS app
 
-Create a small caller workflow like `.github/workflows/minibrowser.yml` and change only `app_name`, `artifact_name`, and `destination_filename` when the scheme/project follow the app-name convention. Optional overrides remain available for unusual project names. Keep the reusable workflow and `scripts/Deliver-Ipa.ps1` unchanged.
+Create a small caller workflow like `.github/workflows/minibrowser.yml` and change only `app_name` and `destination_filename` when the scheme/project follow the app-name convention. With direct uploads, the IPA filename is also the GitHub artifact name. Optional overrides remain available for unusual project names. Keep the reusable workflow and `scripts/Deliver-Ipa.ps1` unchanged.
 
 ## Safe local delivery test
 
