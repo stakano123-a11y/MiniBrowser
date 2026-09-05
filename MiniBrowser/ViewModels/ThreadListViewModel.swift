@@ -99,34 +99,22 @@ final class ThreadListViewModel: ObservableObject {
 
     private func loadOpenerTexts(for loaded: [ThreadListItem],
                                  sort: ThreadListSort) async {
-        for offset in stride(from: 0, to: loaded.count, by: 4) {
+        for item in loaded {
             guard !Task.isCancelled, selectedSort == sort else { return }
-            let end = min(offset + 4, loaded.count)
-            let batch = Array(loaded[offset..<end])
-            let results = await withTaskGroup(of: (String, String).self,
-                                              returning: [(String, String)].self) { group in
-                for item in batch {
-                    group.addTask { [service] in
-                        do {
-                            return (item.id, try await service.openerText(for: item))
-                        } catch {
-                            return (item.id, "本文取得失敗")
-                        }
-                    }
-                }
-                var values: [(String, String)] = []
-                for await value in group {
-                    values.append(value)
-                }
-                return values
+            let text: String
+            do {
+                text = try await service.openerText(for: item)
+            } catch is CancellationError {
+                return
+            } catch {
+                text = "本文取得失敗"
             }
 
             guard !Task.isCancelled, selectedSort == sort else { return }
-            for (id, text) in results {
-                if let index = items.firstIndex(where: { $0.id == id }) {
-                    items[index].openerText = text
-                }
+            if let index = items.firstIndex(where: { $0.id == item.id }) {
+                items[index].openerText = text
             }
+            await Task.yield()
         }
     }
 

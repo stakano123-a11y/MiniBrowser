@@ -20,6 +20,7 @@ $inputZoomFile = Join-Path $projectRoot 'MiniBrowser\Services\InputAutoZoomPreve
 $focusModeFile = Join-Path $projectRoot 'MiniBrowser\Services\CompactPageModeService.swift'
 $listServiceFile = Join-Path $projectRoot 'MiniBrowser\Services\ThreadListService.swift'
 $listViewFile = Join-Path $projectRoot 'MiniBrowser\Views\ThreadListView.swift'
+$listViewModelFile = Join-Path $projectRoot 'MiniBrowser\ViewModels\ThreadListViewModel.swift'
 $infoFile = Join-Path $projectRoot 'MiniBrowser\Info.plist'
 $workflowFile = Join-Path $projectRoot '.github\workflows\reusable-ios-unsigned-build-deliver.yml'
 
@@ -36,6 +37,11 @@ Assert-Contains $focusModeFile 'disableFormPositionToggle' 'disabled TargetPage 
 Assert-Contains $listServiceFile 'bytes=0-32767' 'bounded TargetPage opener request'
 Assert-Contains $listServiceFile 'limit:\s*Int\s*=\s*30' 'thirty-item TargetPage list limit'
 Assert-Contains $listViewFile 'LazyVGrid' 'native two-column TargetPage list'
+
+$listViewModelText = Get-Content -LiteralPath $listViewModelFile -Raw -Encoding UTF8
+if ($listViewModelText -match 'withTaskGroup|withThrowingTaskGroup') {
+    throw 'TargetPage opener loading must avoid the task-group completion crash seen on iOS 26.5.2.'
+}
 Assert-Contains $viewModelFile 'CookieDomainMatcher' 'site-related cookie filter'
 Assert-Contains $viewModelFile 'minibrowser://return' 'MiniBrowser callback URL'
 Assert-Contains $viewModelFile 'evaluateJavaScript' 'bookmarklet execution'
