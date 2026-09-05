@@ -11,6 +11,7 @@ MiniBrowser is a lightweight iPhone browser built with SwiftUI and `WKWebView`. 
 - Local bookmarks and unlimited-length multiline bookmarklets with edit/delete/drag reorder and exact-domain automatic execution
 - Conservative always-on `WKContentRuleList` ad/tracker blocking
 - A focused `img.targethost.net` thread layout that keeps the reply form, thread image, and locally tracked own replies
+- Input-focus auto zoom prevention for small form fields while preserving manual pinch zoom
 - A 500-entry redacted debug log; long-press the bottom toolbar and choose `ログをコピー` to copy the latest 50 entries
 - Reusable GitHub Actions unsigned IPA build and Windows/iCloud Drive delivery
 
@@ -41,6 +42,7 @@ Windows cannot compile this iOS target. The authoritative compile/test check is 
 - Browser-family UA tokens are representative hardcoded profiles. iOS 26 freezes the OS portion at the final iOS 18 value for compatibility; changing a UA does not change the underlying WebKit engine.
 - Automatic bookmarklets run only when the configured domain exactly matches the current host. Their stored source is unchanged; execution forces a bridgeable Boolean completion value.
 - TargetPage focus mode runs only on `img.targethost.net/*/res/*.htm`. Pending reply text stays in per-tab session storage until matched or expired; persistent history contains response numbers only.
+- Input-focus zoom prevention raises only editable controls rendered below 16 px to 16 px. It does not restrict the viewport scale or disable the WKWebView pinch gesture.
 
 Primary references:
 
@@ -49,6 +51,7 @@ Primary references:
 - [Apple WKContentRuleList](https://developer.apple.com/documentation/webkit/wkcontentrulelist)
 - [Apple Shortcuts x-callback-url](https://support.apple.com/guide/shortcuts/use-x-callback-url-apdcd7f20a6f/ios)
 - [WebKit: Safari 26 UA string change](https://webkit.org/blog/17333/webkit-features-in-safari-26-0/#update-to-ua-string)
+- [WebKit bug: iOS input focus auto zoom and pinch zoom](https://bugs.webkit.org/show_bug.cgi?id=285380)
 - [GitHub-hosted runner images](https://github.com/actions/runner-images)
 - [GitHub self-hosted runners](https://docs.github.com/en/actions/reference/runners/self-hosted-runners)
 - [ipify API](https://www.ipify.org/)
