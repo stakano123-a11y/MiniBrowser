@@ -18,6 +18,7 @@ $viewModelFile = Join-Path $projectRoot 'MiniBrowser\ViewModels\BrowserViewModel
 $webViewFile = Join-Path $projectRoot 'MiniBrowser\Web\BrowserWebView.swift'
 $inputZoomFile = Join-Path $projectRoot 'MiniBrowser\Services\InputAutoZoomPreventionService.swift'
 $focusModeFile = Join-Path $projectRoot 'MiniBrowser\Services\CompactPageModeService.swift'
+$handwritingServiceFile = Join-Path $projectRoot 'MiniBrowser\Services\CanvasImageSessionService.swift'
 $listServiceFile = Join-Path $projectRoot 'MiniBrowser\Services\ThreadListService.swift'
 $listViewFile = Join-Path $projectRoot 'MiniBrowser\Views\ThreadListView.swift'
 $listViewModelFile = Join-Path $projectRoot 'MiniBrowser\ViewModels\ThreadListViewModel.swift'
@@ -48,6 +49,14 @@ Assert-Contains $listViewFile 'model\.recordOpen\(item\)' 'persistent TargetPage
 Assert-Contains $listViewFile 'thumbnailData' 'explicit TargetPage thumbnail rendering'
 Assert-Contains $listServiceFile 'makeThumbnailRequest' 'explicit TargetPage thumbnail request'
 Assert-Contains $focusModeFile 'modeHeader\.classList\.add' 'hidden TargetPage response-mode header'
+Assert-Contains $webViewFile 'CanvasImageSessionService\.install' 'TargetPage handwriting session bridge installation'
+Assert-Contains $webViewFile 'WKScriptMessageHandler' 'TargetPage handwriting native message receiver'
+Assert-Contains $handwritingServiceFile 'miniBrowserHandwriting' 'TargetPage handwriting message handler'
+Assert-Contains $handwritingServiceFile 'input\.id !== "itgkfile"' 'existing handwriting input-only image capture'
+Assert-Contains $handwritingServiceFile 'canvas#oejs' 'existing handwriting canvas-only restoration'
+Assert-Contains $handwritingServiceFile 'context\.fillRect\(x, y, 1, 1\)' 'single-pixel handwriting image variation'
+Assert-Contains $handwritingServiceFile 'maximumImageDataByteCount = 3_000_000' 'bounded in-memory handwriting image size'
+Assert-Contains $projectFile 'ASSETCATALOG_COMPILER_APPICON_NAME:\s*AppIcon' 'AppIcon asset compiler setting'
 
 $listViewModelText = Get-Content -LiteralPath $listViewModelFile -Raw -Encoding UTF8
 if ($listViewModelText -match 'withTaskGroup|withThrowingTaskGroup') {
@@ -81,6 +90,18 @@ if ($plist.plist.dict.key -notcontains 'CFBundleURLTypes') {
 }
 if ($plist.plist.dict.key -notcontains 'UISupportedInterfaceOrientations') {
     throw 'Portrait orientation declaration is missing from Info.plist.'
+}
+if ($plist.plist.dict.key -notcontains 'CFBundleIconName') {
+    throw 'CFBundleIconName is missing from Info.plist.'
+}
+
+$appIconContents = Join-Path $projectRoot 'MiniBrowser\Assets.xcassets\AppIcon.appiconset\Contents.json'
+if (-not (Test-Path -LiteralPath $appIconContents)) {
+    throw 'AppIcon asset list is missing.'
+}
+$marketingIcon = Join-Path $projectRoot 'MiniBrowser\Assets.xcassets\AppIcon.appiconset\Icon-1024.png'
+if (-not (Test-Path -LiteralPath $marketingIcon)) {
+    throw '1024px App Store icon is missing.'
 }
 
 $inputZoomText = Get-Content -LiteralPath $inputZoomFile -Raw -Encoding UTF8

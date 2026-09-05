@@ -22,6 +22,7 @@ targets:
         PRODUCT_NAME: MiniBrowser
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: MiniBrowser/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
         SUPPORTS_MACCATALYST: NO
         CODE_SIGN_STYLE: Automatic

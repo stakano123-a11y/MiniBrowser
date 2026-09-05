@@ -16,11 +16,15 @@ struct BrowserWebView: UIViewRepresentable {
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         InputAutoZoomPreventionService.install(on: configuration.userContentController)
         CompactPageModeService.install(on: configuration.userContentController)
+        CanvasImageSessionService.install(on: configuration.userContentController)
+        configuration.userContentController.add(context.coordinator,
+                                                name: CanvasImageSessionService.messageHandlerName)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
+        context.coordinator.attach(webView: webView)
         Task { @MainActor [weak webView] in
             guard let webView else { return }
             do {
@@ -35,10 +39,20 @@ struct BrowserWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        uiView.navigationDelegate = nil
+        uiView.uiDelegate = nil
+        uiView.configuration.userContentController.removeScriptMessageHandler(
+            forName: CanvasImageSessionService.messageHandlerName
+        )
+    }
+
     @MainActor
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         private let model: BrowserViewModel
         private var timeoutTimer: Timer?
+        private weak var attachedWebView: WKWebView?
+        private let handwritingImageStore = TargetPageHandwritingImageStore()
 
         init(model: BrowserViewModel) {
             self.model = model
@@ -46,6 +60,36 @@ struct BrowserWebView: UIViewRepresentable {
 
         deinit {
             timeoutTimer?.invalidate()
+        }
+
+        func attach(webView: WKWebView) {
+            attachedWebView = webView
+        }
+
+        func userContentController(_ userContentController: WKUserContentController,
+                                   didReceive message: WKScriptMessage) {
+            guard message.name == CanvasImageSessionService.messageHandlerName,
+                  message.frameInfo.isMainFrame,
+                  CanvasImageSessionService.isTargetPageThreadURL(
+                    attachedWebView?.url ?? message.frameInfo.request.url
+                  ),
+                  let body = message.body as? [String: Any],
+                  let type = body["type"] as? String else {
+                return
+            }
+
+            switch type {
+            case "selectedImage":
+                guard let dataURL = body["dataURL"] as? String else { return }
+                _ = handwritingImageStore.replace(withDataURL: dataURL)
+
+            case "canvasReady":
+                guard let script = handwritingImageStore.restorationScript() else { return }
+                attachedWebView?.evaluateJavaScript(script)
+
+            default:
+                return
+            }
         }
 
         func webView(_ webView: WKWebView,

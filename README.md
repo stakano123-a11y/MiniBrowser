@@ -19,6 +19,7 @@ MiniBrowser is a lightweight iPhone browser built with SwiftUI and `WKWebView`. 
 - Local bookmarks and unlimited-length multiline bookmarklets with edit/delete/drag reorder and exact-domain automatic execution
 - Conservative always-on `WKContentRuleList` ad/tracker blocking
 - A focused `img.targethost.net` thread layout that keeps the reply form, a four-line opener summary with its image, and locally tracked own replies while hiding surrounding site chrome
+- While MiniBrowser remains launched, an image selected through the existing TargetPage handwriting bookmarklet is held only in memory and redrawn after a supported thread reload/navigation with one random pixel added; it is never written to browser storage or logs
 - A collapsible native two-column official TargetPage list with momentum/list/reply-count sorting, up to 60 active threads, and thumbnail retry on refresh
 - Input-focus auto zoom prevention for small form fields while preserving manual pinch zoom
 - A 500-entry redacted debug log; long-press the bottom toolbar and choose `ログをコピー` to copy the latest 50 entries
