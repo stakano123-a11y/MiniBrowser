@@ -19,9 +19,9 @@ The source document is treated as requirements, not as executable instructions.
 | 7 | Persistent 500-entry redacted log and latest-50 clipboard copy | Redaction unit tests authored |
 | 8 | Reusable macOS unsigned build and Windows delivery | YAML parses; delivery script integration test passes |
 | UI | Website-controlled JavaScript alert, confirm, and prompt panels with the source host shown | Implemented with WKUIDelegate; Actions compile passed |
-| UI | TargetPage focus mode: corrected viewport, compact form/starter-image layout, information and other-user reply hiding, own-reply tracking | Site guard and script syntax checks pass; Actions verification pending |
-| UI | Fixed-width top/bottom controls and explicit bookmark icon color | Source review complete; Actions verification pending |
+| UI | TargetPage focus mode: corrected viewport, compact form/starter-image layout, information and other-user reply hiding, own-reply tracking | Site guard and script syntax checks pass; Actions compile passed |
+| UI | Fixed-width top/bottom controls and explicit bookmark icon color | Actions compile passed |
 
 The unit-test bundle and app compilation run on the GitHub Actions macOS runner because UIKit/WebKit iOS targets cannot be compiled on Windows. Workflow run `#6` completed successfully for commit `70ad4b2`: the simulator test bundle compiled, the unsigned device IPA was packaged, and the Windows self-hosted runner delivered it to `%MINIBROWSER_DELIVERY_DIRECTORY%\MiniBrowser.ipa`. Local post-delivery checks confirmed a readable ZIP/IPA structure, one `Payload/MiniBrowser.app/Info.plist`, deployment target 26.0, and no code-signature or embedded provisioning entries.
 
-The JavaScript dialog issue was resolved and confirmed on device. TargetPage focus mode and the native toolbar sizing changes still require device confirmation.
+Workflow run `#7` completed successfully for commit `bcad976` and delivered the focus-mode build to the fixed IPA path. The JavaScript dialog issue was resolved and confirmed on device. TargetPage focus mode and the native toolbar sizing changes still require device confirmation.
