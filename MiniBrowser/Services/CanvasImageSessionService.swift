@@ -129,7 +129,7 @@ final class TargetPageHandwritingImageStore {
           };
           source.src = \#(dataURLLiteral);
         })();
-        """
+        """#
     }
 
     private static func parseDataURL(_ value: String) -> (mimeType: String, data: Data)? {
