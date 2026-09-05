@@ -66,50 +66,12 @@ struct ThreadListView: View {
                 GridItem(.flexible(), spacing: 4)
             ], spacing: 4) {
                 ForEach(model.items) { item in
+                    let openCount = model.openCount(for: item)
                     Button {
                         model.recordOpen(item)
                         onOpenThread(item.threadURL)
                     } label: {
-                        HStack(spacing: 5) {
-                            if let data = item.thumbnailData,
-                               let image = UIImage(data: data) {
-                                Image(uiImage: image)
-                                    .resizable()
-                                    .scaledToFit()
-                            } else if item.thumbnailLoadFailed {
-                                Image(systemName: "photo")
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .background(Color.secondary.opacity(0.12))
-                            } else {
-                                ProgressView()
-                                    .controlSize(.mini)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .background(Color.secondary.opacity(0.12))
-                            }
-                            .frame(width: 32, height: 32)
-                            .clipped()
-
-                            Text(item.openerText ?? "本文取得中…")
-                                .font(.caption2)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            if model.openCount(for: item) > 0 {
-                                Text("\(model.openCount(for: item))回")
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: true, vertical: false)
-                            }
-                        }
-                        .padding(.horizontal, 4)
-                        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                        .background(model.openCount(for: item) > 0
-                                    ? Color.blue.opacity(0.18)
-                                    : Color(uiColor: .secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        ThreadListCell(item: item, openCount: openCount)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(item.openerText ?? "本文取得中")
@@ -117,6 +79,64 @@ struct ThreadListView: View {
             }
             .padding(4)
         }
+    }
+}
+
+private struct ThreadListCell: View {
+    let item: ThreadListItem
+    let openCount: Int
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ThreadListThumbnail(item: item)
+
+            Text(item.openerText ?? "本文取得中…")
+                .font(.caption2)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if openCount > 0 {
+                Text("\(openCount)回")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+        }
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+        .background(openCount > 0
+                    ? Color.blue.opacity(0.18)
+                    : Color(uiColor: .secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+}
+
+private struct ThreadListThumbnail: View {
+    let item: ThreadListItem
+
+    var body: some View {
+        Group {
+            if let data = item.thumbnailData,
+               let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else if item.thumbnailLoadFailed {
+                Image(systemName: "photo")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.secondary.opacity(0.12))
+            } else {
+                ProgressView()
+                    .controlSize(.mini)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.secondary.opacity(0.12))
+            }
+        }
+        .frame(width: 32, height: 32)
+        .clipped()
     }
 }
 
