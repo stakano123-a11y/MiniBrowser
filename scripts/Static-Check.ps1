@@ -59,7 +59,7 @@ Assert-Contains $viewModelFile 'evaluateJavaScript' 'bookmarklet execution'
 Assert-Contains $workflowFile 'CODE_SIGNING_ALLOWED=NO' 'unsigned build'
 Assert-Contains $workflowFile 'actions/download-artifact@v8' 'artifact download on Windows'
 Assert-Contains $specFile '# MiniBrowser 実装仕様書' 'canonical product specification'
-Assert-Contains $agentsFile 'project-maintainer/MiniBrowser' 'canonical repository rule'
+Assert-Contains $agentsFile 'quietarc-lab/MiniBrowser' 'canonical repository rule'
 Assert-Contains $agentsFile 'GitHub Issues' 'issue handoff rule'
 
 $uaText = Get-Content -LiteralPath $uaFile -Raw -Encoding UTF8
