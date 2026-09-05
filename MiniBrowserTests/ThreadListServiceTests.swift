@@ -15,7 +15,7 @@ final class ThreadListServiceTests: XCTestCase {
     func testListParserFiltersFullThreadsLimitsToSixtyAndUsesHTTPS() {
         let cells = (1...70).map { number in
             let replyCount = number.isMultiple(of: 11) ? 1_000 : number * 2
-            """
+            return """
             <td><a href='res/\(1000 + number).htm' target='_blank'>
             <img src='http://img.2chan.net/b/cat/\(number)s.jpg'></a>
             <br><font size=2>\(replyCount)</font></td>
