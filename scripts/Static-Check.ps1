@@ -16,12 +16,16 @@ $projectFile = Join-Path $projectRoot 'project.yml'
 $uaFile = Join-Path $projectRoot 'MiniBrowser\Models\BrowserUserAgent.swift'
 $viewModelFile = Join-Path $projectRoot 'MiniBrowser\ViewModels\BrowserViewModel.swift'
 $webViewFile = Join-Path $projectRoot 'MiniBrowser\Web\BrowserWebView.swift'
+$inputZoomFile = Join-Path $projectRoot 'MiniBrowser\Services\InputAutoZoomPreventionService.swift'
 $infoFile = Join-Path $projectRoot 'MiniBrowser\Info.plist'
 $workflowFile = Join-Path $projectRoot '.github\workflows\reusable-ios-unsigned-build-deliver.yml'
 
 Assert-Contains $projectFile 'iOS:\s*"26\.0"' 'iOS 26 deployment target'
 Assert-Contains $webViewFile 'WKWebViewConfiguration' 'WKWebView configuration'
 Assert-Contains $webViewFile 'websiteDataStore\s*=\s*\.default\(\)' 'persistent website data store'
+Assert-Contains $webViewFile 'InputAutoZoomPreventionService\.install' 'input focus auto-zoom prevention'
+Assert-Contains $inputZoomFile 'fontSize\s*<\s*16' 'small input font-size guard'
+Assert-Contains $inputZoomFile 'forMainFrameOnly:\s*false' 'input auto-zoom prevention in subframes'
 Assert-Contains $viewModelFile 'CookieDomainMatcher' 'site-related cookie filter'
 Assert-Contains $viewModelFile 'minibrowser://return' 'MiniBrowser callback URL'
 Assert-Contains $viewModelFile 'evaluateJavaScript' 'bookmarklet execution'
@@ -47,6 +51,11 @@ if ($plist.plist.dict.key -notcontains 'CFBundleURLTypes') {
 }
 if ($plist.plist.dict.key -notcontains 'UISupportedInterfaceOrientations') {
     throw 'Portrait orientation declaration is missing from Info.plist.'
+}
+
+$inputZoomText = Get-Content -LiteralPath $inputZoomFile -Raw -Encoding UTF8
+if ($inputZoomText -match 'maximum-scale|user-scalable|pinchGestureRecognizer') {
+    throw 'Manual pinch zoom must remain enabled.'
 }
 
 $cookieValueLeaks = Get-ChildItem -LiteralPath (Join-Path $projectRoot 'MiniBrowser') -Filter '*.swift' -Recurse |
