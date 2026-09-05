@@ -78,22 +78,34 @@ jobs:
         shell: bash
         run: xcodegen generate
 
-      - name: Compile unit tests for iOS Simulator
+      - name: Run unit tests on iOS Simulator
         shell: bash
         env:
           PROJECT_PATH: ${{ inputs.project_path || format('{0}.xcodeproj', inputs.app_name) }}
           SCHEME: ${{ inputs.scheme || inputs.app_name }}
         run: |
           set -euo pipefail
+          DEVICE_ID="$(xcrun simctl list devices available -j | /usr/bin/python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for runtime, devices in data.get("devices", {}).items():
+              if "iOS" not in runtime:
+                  continue
+              for device in devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      print(device["udid"])
+                      raise SystemExit
+          raise SystemExit("No available iPhone Simulator was found")
+          ')"
           xcodebuild \
             -project "$PROJECT_PATH" \
             -scheme "$SCHEME" \
             -configuration Debug \
             -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination "platform=iOS Simulator,id=$DEVICE_ID" \
             -derivedDataPath build-tests \
             CODE_SIGNING_ALLOWED=NO \
-            build-for-testing
+            test
 
       - name: Build without code signing
         shell: bash
