@@ -125,6 +125,41 @@ enum CompactPageModeService {
           .minibrowser-targetpage-form input[type="text"] {
             width: 100% !important;
           }
+          .minibrowser-targetpage-form textarea[name="com"] {
+            height: 3.2em !important;
+            min-height: 3.2em !important;
+            max-height: 3.2em !important;
+            overflow-y: auto !important;
+            resize: none !important;
+          }
+          .minibrowser-targetpage-email-row,
+          .minibrowser-targetpage-delete-help,
+          #reszb {
+            display: none !important;
+          }
+          #minibrowser-targetpage-comment-actions {
+            display: flex !important;
+            justify-content: flex-end !important;
+            align-items: center !important;
+            gap: 6px !important;
+            width: 100% !important;
+            margin: 0 0 3px !important;
+          }
+          #minibrowser-targetpage-draft-toggle {
+            min-width: 62px !important;
+            min-height: 26px !important;
+            padding: 2px 6px !important;
+            border: 1px solid #888 !important;
+            border-radius: 5px !important;
+            background: #eee !important;
+            color: #333 !important;
+            font-size: 12px !important;
+          }
+          #minibrowser-targetpage-draft-toggle[data-enabled="true"] {
+            border-color: #087be6 !important;
+            background: #087be6 !important;
+            color: #fff !important;
+          }
           .minibrowser-targetpage-form .ftb2 {
             display: none !important;
           }
@@ -173,6 +208,156 @@ enum CompactPageModeService {
       form.classList.add("minibrowser-targetpage-form");
       const infoTable = form.querySelector(".ftb2");
       if (infoTable) infoTable.setAttribute("aria-hidden", "true");
+
+      const emailInput = form.querySelector('input[name="email"]');
+      const textarea = form.querySelector('textarea[name="com"]');
+      const submitButton = Array.from(form.querySelectorAll(
+        'input[type="submit"], button[type="submit"]'
+      )).find(button => /返信|送信/.test(button.value || button.textContent || ""));
+
+      function clearEmail() {
+        if (!emailInput) return;
+        if (emailInput.value !== "") emailInput.value = "";
+        if (emailInput.defaultValue !== "") emailInput.defaultValue = "";
+        if (emailInput.getAttribute("value")) emailInput.setAttribute("value", "");
+        if (emailInput.getAttribute("autocomplete") !== "off") {
+          emailInput.setAttribute("autocomplete", "off");
+        }
+      }
+
+      clearEmail();
+      if (emailInput && !emailInput.dataset.minibrowserEmptyGuard) {
+        emailInput.dataset.minibrowserEmptyGuard = "true";
+        emailInput.addEventListener("input", clearEmail, true);
+        emailInput.addEventListener("change", clearEmail, true);
+        const emailRow = emailInput.closest("tr");
+        if (emailRow) {
+          emailRow.classList.add("minibrowser-targetpage-email-row");
+          emailRow.setAttribute("aria-hidden", "true");
+        }
+      }
+      form.addEventListener("submit", clearEmail, true);
+
+      const deleteInput = form.querySelector('input[name="pwd"]');
+      const deleteHelp = deleteInput && deleteInput.parentElement &&
+        deleteInput.parentElement.querySelector("small");
+      if (deleteHelp) {
+        deleteHelp.classList.add("minibrowser-targetpage-delete-help");
+        deleteHelp.setAttribute("aria-hidden", "true");
+      }
+
+      function disableFormPositionToggle() {
+        const toggle = doc.getElementById("reszb");
+        if (!toggle) return;
+        if (toggle.hasAttribute("onclick")) toggle.removeAttribute("onclick");
+        if (toggle.getAttribute("aria-hidden") !== "true") {
+          toggle.setAttribute("aria-hidden", "true");
+        }
+        if (!toggle.hasAttribute("inert")) toggle.setAttribute("inert", "");
+        if (!toggle.dataset.minibrowserDisabled) {
+          toggle.dataset.minibrowserDisabled = "true";
+          toggle.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }, true);
+        }
+      }
+      disableFormPositionToggle();
+
+      if (textarea) textarea.rows = 2;
+
+      const draftEnabledKey = "MiniBrowser.TargetPageDraftEnabled";
+      const draftTextKey = "MiniBrowser.TargetPageDraftText";
+      let draftEnabled = false;
+      try {
+        draftEnabled = localStorage.getItem(draftEnabledKey) === "true";
+      } catch (_) {}
+
+      let actions = doc.getElementById("minibrowser-targetpage-comment-actions");
+      if (!actions && textarea && textarea.parentElement) {
+        actions = doc.createElement("div");
+        actions.id = "minibrowser-targetpage-comment-actions";
+        textarea.parentElement.insertBefore(actions, textarea);
+      }
+      if (actions && submitButton) actions.appendChild(submitButton);
+
+      let draftToggle = doc.getElementById("minibrowser-targetpage-draft-toggle");
+      if (!draftToggle && actions) {
+        draftToggle = doc.createElement("button");
+        draftToggle.type = "button";
+        draftToggle.id = "minibrowser-targetpage-draft-toggle";
+        actions.appendChild(draftToggle);
+      }
+
+      function updateDraftToggle() {
+        if (!draftToggle) return;
+        draftToggle.textContent = draftEnabled ? "保持 ON" : "保持 OFF";
+        draftToggle.dataset.enabled = draftEnabled ? "true" : "false";
+        draftToggle.setAttribute("aria-pressed", draftEnabled ? "true" : "false");
+      }
+
+      function saveDraft() {
+        if (!draftEnabled || !textarea) return;
+        try { localStorage.setItem(draftTextKey, textarea.value); } catch (_) {}
+      }
+
+      if (textarea && draftEnabled) {
+        try {
+          const savedDraft = localStorage.getItem(draftTextKey);
+          if (savedDraft !== null) {
+            textarea.value = savedDraft;
+          } else {
+            saveDraft();
+          }
+        } catch (_) {}
+      }
+
+      let submittedDraft = null;
+      if (textarea && !textarea.dataset.minibrowserDraftTracking) {
+        textarea.dataset.minibrowserDraftTracking = "true";
+        textarea.addEventListener("input", () => {
+          if (!draftEnabled) return;
+          if (submittedDraft !== null && textarea.value === "") {
+            try { localStorage.setItem(draftTextKey, submittedDraft); } catch (_) {}
+            return;
+          }
+          submittedDraft = null;
+          saveDraft();
+        }, true);
+      }
+
+      if (draftToggle && !draftToggle.dataset.minibrowserBound) {
+        draftToggle.dataset.minibrowserBound = "true";
+        draftToggle.addEventListener("click", () => {
+          draftEnabled = !draftEnabled;
+          try { localStorage.setItem(draftEnabledKey, draftEnabled ? "true" : "false"); } catch (_) {}
+          if (draftEnabled) {
+            saveDraft();
+          } else {
+            submittedDraft = null;
+            try { localStorage.removeItem(draftTextKey); } catch (_) {}
+            if (textarea) {
+              textarea.value = "";
+              textarea.dispatchEvent(new Event("input", { bubbles: true }));
+              textarea.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+          }
+          updateDraftToggle();
+        }, true);
+      }
+      updateDraftToggle();
+
+      form.addEventListener("submit", () => {
+        if (!draftEnabled || !textarea) return;
+        submittedDraft = textarea.value;
+        saveDraft();
+      }, true);
+
+      const formObserver = new MutationObserver(() => {
+        clearEmail();
+        disableFormPositionToggle();
+      });
+      formObserver.observe(form, { childList: true, subtree: true, attributes: true });
 
       function previousModeHeader(element) {
         let candidate = element.previousElementSibling;
@@ -357,7 +542,6 @@ enum CompactPageModeService {
           const afterNumber = infos.reduce((maximum, info) =>
             Math.max(maximum, info.numericNumber), 0
           );
-          const textarea = form.querySelector('textarea[name="com"]');
           state.pending.push({
             body: normalizedText(textarea && textarea.value),
             afterNumber,
@@ -367,9 +551,6 @@ enum CompactPageModeService {
           saveState(state);
         };
         form.addEventListener("submit", recordPendingPost, true);
-        const submitButton = Array.from(form.querySelectorAll(
-          'input[type="submit"], button[type="submit"]'
-        )).find(button => /返信|送信/.test(button.value || button.textContent || ""));
         if (submitButton) {
           submitButton.addEventListener("click", recordPendingPost, true);
         }

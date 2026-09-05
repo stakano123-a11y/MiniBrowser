@@ -2,14 +2,21 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var model: BrowserViewModel
+    @StateObject private var listModel: ThreadListViewModel
     @State private var showingBookmarks = false
+    @Environment(\.scenePhase) private var scenePhase
+
+    init(model: BrowserViewModel) {
+        self.model = model
+        _listModel = StateObject(wrappedValue: ThreadListViewModel())
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
                 topBar
                 Divider()
-                BrowserWebView(model: model)
+                browserContent
                 Divider()
                 bottomBar
             }
@@ -19,11 +26,36 @@ struct ContentView: View {
                 .padding(.bottom, 58)
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .task {
+            listModel.start()
+        }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            listModel.setSceneActive(phase == .active)
+        }
         .sheet(isPresented: $showingBookmarks) {
             BookmarkListView(store: model.bookmarkStore,
                              currentURL: model.currentURL,
                              onOpen: model.openBookmark,
                              onValidateBookmarklet: model.validateBookmarklet)
+        }
+    }
+
+    private var browserContent: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                BrowserWebView(model: model)
+                    .frame(height: listModel.isExpanded
+                        ? geometry.size.height * 0.65
+                        : max(0, geometry.size.height - 29))
+                Divider()
+                if listModel.isExpanded {
+                    ThreadListView(model: listModel,
+                                      onOpenThread: model.openThreadListThread)
+                        .frame(height: max(0, geometry.size.height * 0.35 - 1))
+                } else {
+                    ThreadListCollapsedBar(model: listModel)
+                }
+            }
         }
     }
 

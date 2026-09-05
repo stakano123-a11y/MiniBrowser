@@ -80,6 +80,18 @@ final class BrowserViewModel: ObservableObject {
         webView?.load(URLRequest(url: url))
     }
 
+    func openThreadListThread(_ url: URL) {
+        guard url.scheme?.lowercased() == "https",
+              url.host?.lowercased() == "img.2chan.net",
+              url.path.range(of: #"^/[^/]+/res/\d+\.htm$"#,
+                             options: .regularExpression) != nil else {
+            showToast("スレURLを確認してください", kind: .failure)
+            return
+        }
+        urlText = url.absoluteString
+        webView?.load(URLRequest(url: url))
+    }
+
     func goBack() {
         webView?.goBack()
     }

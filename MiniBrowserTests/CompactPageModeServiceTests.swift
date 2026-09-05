@@ -24,5 +24,21 @@ final class CompactPageModeServiceTests: XCTestCase {
         XCTAssertTrue(script.contains("MiniBrowser.TargetPageOwnPosts:"))
         XCTAssertTrue(script.contains("10 * 60 * 1000"),
                       "Unmatched post bodies must expire instead of remaining indefinitely.")
+        XCTAssertTrue(script.contains("minibrowser-targetpage-email-row"))
+        XCTAssertTrue(script.contains("clearEmail"))
+        XCTAssertTrue(script.contains("textarea.rows = 2"))
+        XCTAssertTrue(script.contains("minibrowser-targetpage-delete-help"))
+        XCTAssertTrue(script.contains("disableFormPositionToggle"))
+        XCTAssertTrue(script.contains("minibrowser-targetpage-comment-actions"))
+    }
+
+    func testScriptIncludesGlobalDraftRetentionControls() {
+        let script = CompactPageModeService.scriptSource
+        XCTAssertTrue(script.contains("MiniBrowser.TargetPageDraftEnabled"))
+        XCTAssertTrue(script.contains("MiniBrowser.TargetPageDraftText"))
+        XCTAssertTrue(script.contains("保持 ON"))
+        XCTAssertTrue(script.contains("保持 OFF"))
+        XCTAssertTrue(script.contains("localStorage.removeItem(draftTextKey)"))
+        XCTAssertTrue(script.contains("submittedDraft = textarea.value"))
     }
 }
