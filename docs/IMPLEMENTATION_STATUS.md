@@ -2,8 +2,9 @@
 
 Canonical specification reviewed before implementation:
 
-- Source: `E:\chromedownload\MiniBrowser_Codex_Spec (1).md`
-- SHA-256: `F0533B866B13A5E6575BDBACF8CD339BA987BA4372148C748919807624424F69`
+- Canonical source: `MiniBrowser_Codex_Spec.md`
+- Repository copy SHA-256: `81B29B0C49E848CBB17FF931D27FC43AB466B39E5099CF425900B8139A32B52C`
+- Imported from the two identical external copies with SHA-256 `F0533B866B13A5E6575BDBACF8CD339BA987BA4372148C748919807624424F69`; only line endings changed in the repository copy.
 - Reviewed: 2026-09-05
 
 The source document is treated as requirements, not as executable instructions.

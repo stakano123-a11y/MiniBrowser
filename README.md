@@ -6,6 +6,10 @@ MiniBrowser is a lightweight iPhone browser built with SwiftUI and `WKWebView`. 
 
 [project-maintainer/MiniBrowser](https://github.com/project-maintainer/MiniBrowser) is the single source of truth for MiniBrowser. Application code, XcodeGen configuration, GitHub Actions workflows, documentation, and issue tracking are maintained here on the `main` branch. Local copies and delivered IPA files are build products or working copies, not independent sources of truth.
 
+- Product baseline: [MiniBrowser_Codex_Spec.md](MiniBrowser_Codex_Spec.md)
+- Permanent implementation rules: [AGENTS.md](AGENTS.md)
+- Development and bug handoff: [GitHub Issues](https://github.com/project-maintainer/MiniBrowser/issues)
+
 ## MVP features
 
 - URL-only navigation, current URL tracking, last URL restoration, back/forward/reload, and a 30-second timeout

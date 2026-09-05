@@ -23,6 +23,8 @@ $listViewFile = Join-Path $projectRoot 'MiniBrowser\Views\ThreadListView.swift'
 $listViewModelFile = Join-Path $projectRoot 'MiniBrowser\ViewModels\ThreadListViewModel.swift'
 $infoFile = Join-Path $projectRoot 'MiniBrowser\Info.plist'
 $workflowFile = Join-Path $projectRoot '.github\workflows\reusable-ios-unsigned-build-deliver.yml'
+$specFile = Join-Path $projectRoot 'MiniBrowser_Codex_Spec.md'
+$agentsFile = Join-Path $projectRoot 'AGENTS.md'
 
 Assert-Contains $projectFile 'iOS:\s*"26\.0"' 'iOS 26 deployment target'
 Assert-Contains $webViewFile 'WKWebViewConfiguration' 'WKWebView configuration'
@@ -47,6 +49,9 @@ Assert-Contains $viewModelFile 'minibrowser://return' 'MiniBrowser callback URL'
 Assert-Contains $viewModelFile 'evaluateJavaScript' 'bookmarklet execution'
 Assert-Contains $workflowFile 'CODE_SIGNING_ALLOWED=NO' 'unsigned build'
 Assert-Contains $workflowFile 'actions/download-artifact@v8' 'artifact download on Windows'
+Assert-Contains $specFile '# MiniBrowser 実装仕様書' 'canonical product specification'
+Assert-Contains $agentsFile 'project-maintainer/MiniBrowser' 'canonical repository rule'
+Assert-Contains $agentsFile 'GitHub Issues' 'issue handoff rule'
 
 $uaText = Get-Content -LiteralPath $uaFile -Raw -Encoding UTF8
 $uaCount = ([regex]::Matches($uaText, '\.init\(id:\s*\d+')).Count
