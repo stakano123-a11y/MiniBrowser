@@ -133,16 +133,9 @@ enum CompactPageModeService {
             resize: none !important;
           }
           .minibrowser-targetpage-email-row,
-          .minibrowser-targetpage-delete-help {
-            display: none !important;
-          }
+          .minibrowser-targetpage-delete-help,
           #reszb {
-            display: inline-block !important;
-            margin-left: 6px !important;
-            color: #1769aa !important;
-            text-decoration: underline !important;
-            cursor: pointer !important;
-            font-size: 12px !important;
+            display: none !important;
           }
           #minibrowser-targetpage-comment-actions {
             display: flex !important;
@@ -246,40 +239,30 @@ enum CompactPageModeService {
       form.addEventListener("submit", clearEmail, true);
 
       const deleteInput = form.querySelector('input[name="pwd"]');
-      const fixedDeleteKey = "2310";
-      function enforceDeleteKey() {
-        if (!deleteInput) return;
-        if (deleteInput.value !== fixedDeleteKey) deleteInput.value = fixedDeleteKey;
-        if (deleteInput.defaultValue !== fixedDeleteKey) deleteInput.defaultValue = fixedDeleteKey;
-        if (deleteInput.getAttribute("value") !== fixedDeleteKey) {
-          deleteInput.setAttribute("value", fixedDeleteKey);
+      const deleteHelp = deleteInput && deleteInput.parentElement &&
+        deleteInput.parentElement.querySelector("small");
+      if (deleteHelp) {
+        deleteHelp.classList.add("minibrowser-targetpage-delete-help");
+        deleteHelp.setAttribute("aria-hidden", "true");
+      }
+
+      function disableFormPositionToggle() {
+        const toggle = doc.getElementById("reszb");
+        if (!toggle) return;
+        if (toggle.hasAttribute("onclick")) toggle.removeAttribute("onclick");
+        if (toggle.getAttribute("aria-hidden") !== "true") {
+          toggle.setAttribute("aria-hidden", "true");
         }
-        if (deleteInput.getAttribute("autocomplete") !== "off") {
-          deleteInput.setAttribute("autocomplete", "off");
+        if (!toggle.hasAttribute("inert")) toggle.setAttribute("inert", "");
+        if (!toggle.dataset.minibrowserDisabled) {
+          toggle.dataset.minibrowserDisabled = "true";
+          toggle.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }, true);
         }
-        if (!deleteInput.readOnly) deleteInput.readOnly = true;
       }
-      enforceDeleteKey();
-      if (deleteInput && !deleteInput.dataset.minibrowserFixedDeleteKey) {
-        deleteInput.dataset.minibrowserFixedDeleteKey = "true";
-        deleteInput.addEventListener("input", enforceDeleteKey, true);
-        deleteInput.addEventListener("change", enforceDeleteKey, true);
-      }
-      function hideDeleteHelp() {
-        const deleteHelp = deleteInput && deleteInput.parentElement &&
-          deleteInput.parentElement.querySelector("small");
-        if (!deleteHelp) return;
-        Array.from(deleteHelp.childNodes).forEach(node => {
-          if (node.nodeType === Node.TEXT_NODE) {
-            node.remove();
-            return;
-          }
-          if (node.nodeType === Node.ELEMENT_NODE && node.id !== "reszb") {
-            node.remove();
-          }
-        });
-      }
-      hideDeleteHelp();
+      disableFormPositionToggle();
 
       if (textarea) textarea.rows = 2;
 
@@ -370,11 +353,16 @@ enum CompactPageModeService {
       updateDraftToggle();
 
       form.addEventListener("submit", () => {
-        enforceDeleteKey();
         if (!draftEnabled || !textarea) return;
         submittedDraft = textarea.value;
         saveDraft();
       }, true);
+
+      const formObserver = new MutationObserver(() => {
+        clearEmail();
+        disableFormPositionToggle();
+      });
+      formObserver.observe(form, { childList: true, subtree: true, attributes: true });
 
       function previousModeHeader(element) {
         let candidate = element.previousElementSibling;
@@ -441,56 +429,6 @@ enum CompactPageModeService {
 
         compose.appendChild(form);
       }
-
-      let formAtBottom = false;
-      function updateFormPositionToggle() {
-        const toggle = doc.getElementById("reszb");
-        if (!toggle) return;
-        toggle.textContent = formAtBottom ? "フォームを上へ" : "フォームを下へ";
-        toggle.setAttribute("role", "button");
-        toggle.setAttribute("tabindex", "0");
-        toggle.setAttribute("aria-pressed", formAtBottom ? "true" : "false");
-      }
-      function moveCompose() {
-        if (!compose.parentElement || compose.parentElement !== thread.parentElement) return;
-        formAtBottom = !formAtBottom;
-        if (formAtBottom) {
-          thread.parentElement.insertBefore(compose, thread.nextSibling);
-        } else {
-          thread.parentElement.insertBefore(compose, thread);
-        }
-        updateFormPositionToggle();
-      }
-      function configureFormPositionToggle() {
-        const toggle = doc.getElementById("reszb");
-        if (!toggle) return;
-        if (toggle.hasAttribute("onclick")) toggle.removeAttribute("onclick");
-        if (toggle.hasAttribute("inert")) toggle.removeAttribute("inert");
-        toggle.removeAttribute("aria-hidden");
-        if (!toggle.dataset.minibrowserPositionBound) {
-          toggle.dataset.minibrowserPositionBound = "true";
-          toggle.addEventListener("click", event => {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            moveCompose();
-          }, true);
-          toggle.addEventListener("keydown", event => {
-            if (event.key !== "Enter" && event.key !== " ") return;
-            event.preventDefault();
-            moveCompose();
-          }, true);
-        }
-        updateFormPositionToggle();
-      }
-      configureFormPositionToggle();
-
-      const formObserver = new MutationObserver(() => {
-        clearEmail();
-        enforceDeleteKey();
-        hideDeleteHelp();
-        configureFormPositionToggle();
-      });
-      formObserver.observe(form, { childList: true, subtree: true, attributes: true });
 
       if (modeHeader && modeHeader.parentElement === doc.body) {
         hideRange(doc.body.firstElementChild, modeHeader);

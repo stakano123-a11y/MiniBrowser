@@ -16,7 +16,7 @@ actor ThreadListService {
         self.session = session
     }
 
-    func fetchList(sort: ThreadListSort, limit: Int = 60) async throws -> [ThreadListItem] {
+    func fetchList(sort: ThreadListSort, limit: Int = 30) async throws -> [ThreadListItem] {
         var request = URLRequest(url: sort.url)
         request.timeoutInterval = 15
         request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -128,7 +128,7 @@ actor ThreadListService {
 
     nonisolated static func parseListHTML(_ html: String,
                                              baseURL: URL,
-                                             limit: Int = 60) -> [ThreadListItem] {
+                                             limit: Int = 30) -> [ThreadListItem] {
         guard limit > 0,
               let tableRange = html.range(
                 of: #"<table\b[^>]*\bid\s*=\s*['\"]cattable['\"][^>]*>([\s\S]*?)</table>"#,
@@ -166,12 +166,10 @@ actor ThreadListService {
             let replyText = firstCapture(in: cell,
                                          pattern: #"<font\b[^>]*>\s*(\d+)\s*</font>"#,
                                          index: 1)
-            let replyCount = Int(replyText ?? "") ?? 0
-            guard replyCount < 1_000 else { continue }
             items.append(ThreadListItem(id: id,
                                            threadURL: threadURL,
                                            thumbnailURL: thumbnailURL,
-                                           replyCount: replyCount,
+                                           replyCount: Int(replyText ?? "") ?? 0,
                                            thumbnailData: nil,
                                            openerText: nil))
         }

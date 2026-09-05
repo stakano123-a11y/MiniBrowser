@@ -110,11 +110,6 @@ struct BrowserWebView: UIViewRepresentable {
                      runJavaScriptAlertPanelWithMessage message: String,
                      initiatedByFrame frame: WKFrameInfo,
                      completionHandler: @escaping () -> Void) {
-            if WebDialogPolicy.shouldAutoDismissAlert(host: frame.request.url?.host ?? webView.url?.host,
-                                                      message: message) {
-                completionHandler()
-                return
-            }
             let alert = UIAlertController(title: dialogTitle(for: frame, webView: webView),
                                           message: message,
                                           preferredStyle: .alert)
