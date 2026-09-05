@@ -6,6 +6,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: minibrowser-ios-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-deliver:
     uses: ./.github/workflows/reusable-ios-unsigned-build-deliver.yml

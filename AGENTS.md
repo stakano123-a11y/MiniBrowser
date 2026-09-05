@@ -35,6 +35,17 @@
 - After delivery, verify `Payload/MiniBrowser.app`, minimum OS 26.0, absence of signature/provisioning entries, and SHA-256.
 - Device-only behavior remains unconfirmed until tested on the reporting iPhone; do not close such work solely because Simulator tests pass.
 
+## Resource usage policy
+
+- Keep the canonical GitHub repository private. Do not propose making it public merely to reduce Actions charges unless the user explicitly reopens that privacy decision.
+- Run the GitHub-hosted macOS IPA workflow only by manual dispatch after a coherent change set passes Windows checks. Do not trigger a macOS build for every intermediate push.
+- Prefer one macOS build per device-test batch. Diagnose and fix Windows-detectable failures before dispatching another hosted run.
+- The default Codex model is GPT-5.6 Luna with MAX reasoning for routine inspection, documentation, small known-pattern edits, and local verification.
+- Escalate to GPT-5.6 Terra with High reasoning for ordinary multi-file SwiftUI work, networking/parsing/persistence changes, new tests, or CI failures.
+- Escalate to GPT-5.6 Sol with High reasoning for crash logs, Swift concurrency or lifetime faults, ambiguous root causes, architecture, security/privacy work, and final review of high-risk changes.
+- Escalate early when the same blocker survives two attempts, compiler/API behavior is uncertain, a crash or asynchronous path is involved, three or more subsystems are coupled, or data/security risk exists. Quota conservation must not override these safety triggers.
+- Return later routine work to Luna/MAX after the high-risk portion is resolved. If the current task cannot change models in place, state that limitation before continuing risk-sensitive work and use an explicit model override or a separate task when available.
+
 ## Issues and change handoff
 
 - Use GitHub Issues as the handoff point for development tasks, bugs, and device verification.
