@@ -12,12 +12,13 @@ final class ThreadListServiceTests: XCTestCase {
                        "https://img.2chan.net/b/futaba.php?mode=cat&sort=3")
     }
 
-    func testListParserPreservesOrderLimitsItemsAndUsesHTTPS() {
-        let cells = (1...35).map { number in
+    func testListParserFiltersFullThreadsLimitsToSixtyAndUsesHTTPS() {
+        let cells = (1...70).map { number in
+            let replyCount = number.isMultiple(of: 11) ? 1_000 : number * 2
             """
             <td><a href='res/\(1000 + number).htm' target='_blank'>
             <img src='http://img.2chan.net/b/cat/\(number)s.jpg'></a>
-            <br><font size=2>\(number * 2)</font></td>
+            <br><font size=2>\(replyCount)</font></td>
             """
         }.joined(separator: "\n")
         let html = "<html><table id='cattable'><tr>\(cells)</tr></table></html>"
@@ -25,16 +26,17 @@ final class ThreadListServiceTests: XCTestCase {
         let items = ThreadListService.parseListHTML(
             html,
             baseURL: ThreadListSort.momentum.url,
-            limit: 30
+            limit: 60
         )
 
-        XCTAssertEqual(items.count, 30)
+        XCTAssertEqual(items.count, 60)
         XCTAssertEqual(items.first?.id, "1001")
-        XCTAssertEqual(items.last?.id, "1030")
+        XCTAssertEqual(items.last?.id, "1065")
         XCTAssertEqual(items.first?.threadURL.absoluteString,
                        "https://img.2chan.net/b/res/1001.htm")
         XCTAssertEqual(items.first?.thumbnailURL.scheme, "https")
         XCTAssertEqual(items.first?.replyCount, 2)
+        XCTAssertFalse(items.contains { $0.replyCount >= 1_000 })
     }
 
     func testListParserRejectsForeignURLs() {

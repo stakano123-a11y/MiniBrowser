@@ -20,7 +20,9 @@ final class ThreadListViewModel: ObservableObject {
     private let defaults: UserDefaults
     private var isSceneActive = true
     private var hasStarted = false
-    private var loadTask: Task<Void, Never>?
+    private var listLoadTask: Task<Void, Never>?
+    private var thumbnailLoadTask: Task<Void, Never>?
+    private var openerTextLoadTask: Task<Void, Never>?
     private var refreshLoopTask: Task<Void, Never>?
 
     init(service: ThreadListService = ThreadListService(),
@@ -38,7 +40,9 @@ final class ThreadListViewModel: ObservableObject {
     }
 
     deinit {
-        loadTask?.cancel()
+        listLoadTask?.cancel()
+        thumbnailLoadTask?.cancel()
+        openerTextLoadTask?.cancel()
         refreshLoopTask?.cancel()
     }
 
@@ -54,6 +58,11 @@ final class ThreadListViewModel: ObservableObject {
     func setSceneActive(_ active: Bool) {
         guard isSceneActive != active else { return }
         isSceneActive = active
+        if !active {
+            cancelContentLoads()
+        } else if isExpanded {
+            refresh()
+        }
         updateRefreshLoop()
     }
 
@@ -63,7 +72,7 @@ final class ThreadListViewModel: ObservableObject {
         if isExpanded {
             refresh()
         } else {
-            loadTask?.cancel()
+            cancelContentLoads()
             isRefreshing = false
         }
         updateRefreshLoop()
@@ -73,26 +82,27 @@ final class ThreadListViewModel: ObservableObject {
         guard selectedSort != sort else { return }
         selectedSort = sort
         defaults.set(sort.rawValue, forKey: Keys.sort)
+        cancelContentLoads()
         refresh()
     }
 
     func refresh() {
         guard isExpanded, isSceneActive else { return }
-        loadTask?.cancel()
+        listLoadTask?.cancel()
         let sort = selectedSort
         isRefreshing = true
         errorMessage = nil
 
-        loadTask = Task { [weak self] in
+        listLoadTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let loaded = try await service.fetchList(sort: sort, limit: 30)
+                let loaded = try await service.fetchList(sort: sort, limit: 60)
                 try Task.checkCancellation()
                 guard selectedSort == sort else { return }
-                items = loaded
+                items = mergeLoadedItems(loaded, with: items)
                 isRefreshing = false
-                await loadThumbnails(for: loaded, sort: sort)
-                await loadOpenerTexts(for: loaded, sort: sort)
+                startThumbnailLoadingIfNeeded(sort: sort)
+                startOpenerTextLoadingIfNeeded(sort: sort)
             } catch is CancellationError {
                 isRefreshing = false
             } catch {
@@ -120,10 +130,46 @@ final class ThreadListViewModel: ObservableObject {
         openCounts[item.id, default: 0]
     }
 
-    private func loadThumbnails(for loaded: [ThreadListItem],
-                                sort: ThreadListSort) async {
-        for item in loaded {
-            guard !Task.isCancelled, selectedSort == sort else { return }
+    private func cancelContentLoads() {
+        listLoadTask?.cancel()
+        listLoadTask = nil
+        thumbnailLoadTask?.cancel()
+        thumbnailLoadTask = nil
+        openerTextLoadTask?.cancel()
+        openerTextLoadTask = nil
+    }
+
+    private func mergeLoadedItems(_ loaded: [ThreadListItem],
+                                  with current: [ThreadListItem]) -> [ThreadListItem] {
+        let existing = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
+        return loaded.map { item in
+            guard let previous = existing[item.id],
+                  previous.thumbnailURL == item.thumbnailURL else {
+                return item
+            }
+            var merged = item
+            merged.thumbnailData = previous.thumbnailData
+            merged.thumbnailLoadFailed = previous.thumbnailData == nil ? false : previous.thumbnailLoadFailed
+            merged.openerText = previous.openerText
+            return merged
+        }
+    }
+
+    private func startThumbnailLoadingIfNeeded(sort: ThreadListSort) {
+        guard thumbnailLoadTask == nil else { return }
+        thumbnailLoadTask = Task { [weak self] in
+            guard let self else { return }
+            await self.loadMissingThumbnails(sort: sort)
+            guard !Task.isCancelled else { return }
+            self.thumbnailLoadTask = nil
+        }
+    }
+
+    private func loadMissingThumbnails(sort: ThreadListSort) async {
+        while !Task.isCancelled, selectedSort == sort, isExpanded, isSceneActive {
+            guard let item = items.first(where: {
+                $0.thumbnailData == nil && !$0.thumbnailLoadFailed
+            }) else { return }
             do {
                 let data = try await service.thumbnailData(for: item,
                                                            referer: sort.url)
@@ -143,10 +189,19 @@ final class ThreadListViewModel: ObservableObject {
         }
     }
 
-    private func loadOpenerTexts(for loaded: [ThreadListItem],
-                                 sort: ThreadListSort) async {
-        for item in loaded {
-            guard !Task.isCancelled, selectedSort == sort else { return }
+    private func startOpenerTextLoadingIfNeeded(sort: ThreadListSort) {
+        guard openerTextLoadTask == nil else { return }
+        openerTextLoadTask = Task { [weak self] in
+            guard let self else { return }
+            await self.loadMissingOpenerTexts(sort: sort)
+            guard !Task.isCancelled else { return }
+            self.openerTextLoadTask = nil
+        }
+    }
+
+    private func loadMissingOpenerTexts(sort: ThreadListSort) async {
+        while !Task.isCancelled, selectedSort == sort, isExpanded, isSceneActive {
+            guard let item = items.first(where: { $0.openerText == nil }) else { return }
             let text: String
             do {
                 text = try await service.openerText(for: item)
