@@ -49,8 +49,16 @@ enum CompactPageModeService {
             box-sizing: border-box !important;
             margin: 4px 0 8px !important;
           }
-          #minibrowser-targetpage-compose.minibrowser-no-image {
+          #minibrowser-targetpage-compose.minibrowser-no-context {
             grid-template-columns: minmax(0, 1fr) !important;
+          }
+          #minibrowser-targetpage-context {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 6px !important;
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           #minibrowser-targetpage-starter {
             display: block !important;
@@ -65,6 +73,23 @@ enum CompactPageModeService {
             max-height: 180px !important;
             margin: 0 !important;
             object-fit: contain !important;
+          }
+          #minibrowser-targetpage-opener {
+            display: -webkit-box !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 6px !important;
+            border: 1px solid rgba(128, 64, 48, 0.35) !important;
+            background: rgba(255, 255, 255, 0.45) !important;
+            color: inherit !important;
+            box-sizing: border-box !important;
+            font-size: 14px !important;
+            line-height: 1.35 !important;
+            overflow: hidden !important;
+            overflow-wrap: anywhere !important;
+            -webkit-box-orient: vertical !important;
+            -webkit-line-clamp: 4 !important;
           }
           .minibrowser-targetpage-form {
             position: static !important;
@@ -106,6 +131,12 @@ enum CompactPageModeService {
           .minibrowser-targetpage-thread-extra {
             display: none !important;
           }
+          .minibrowser-targetpage-page-extra,
+          #hdp,
+          #contres,
+          #ufm {
+            display: none !important;
+          }
           div.thre {
             width: 100% !important;
             min-width: 0 !important;
@@ -143,6 +174,29 @@ enum CompactPageModeService {
       const infoTable = form.querySelector(".ftb2");
       if (infoTable) infoTable.setAttribute("aria-hidden", "true");
 
+      function previousModeHeader(element) {
+        let candidate = element.previousElementSibling;
+        while (candidate) {
+          if (candidate.tagName === "TABLE" &&
+              /レス送信モード/.test(candidate.textContent || "")) {
+            return candidate;
+          }
+          candidate = candidate.previousElementSibling;
+        }
+        return null;
+      }
+
+      function hideRange(first, stopExclusive = null) {
+        let element = first;
+        while (element && element !== stopExclusive) {
+          const next = element.nextElementSibling;
+          element.classList.add("minibrowser-targetpage-page-extra");
+          element = next;
+        }
+      }
+
+      const modeHeader = previousModeHeader(form);
+
       let compose = doc.getElementById("minibrowser-targetpage-compose");
       if (!compose) {
         compose = doc.createElement("div");
@@ -152,13 +206,42 @@ enum CompactPageModeService {
         const starterLink = Array.from(thread.children).find(element =>
           element.tagName === "A" && element.querySelector("img")
         );
-        if (starterLink) {
-          starterLink.id = "minibrowser-targetpage-starter";
-          compose.appendChild(starterLink);
+        const opener = Array.from(thread.children).find(element =>
+          element.tagName === "BLOCKQUOTE"
+        );
+
+        if (starterLink || opener) {
+          const context = doc.createElement("div");
+          context.id = "minibrowser-targetpage-context";
+          compose.appendChild(context);
+
+          if (starterLink) {
+            starterLink.id = "minibrowser-targetpage-starter";
+            context.appendChild(starterLink);
+          }
+
+          if (opener) {
+            opener.id = "minibrowser-targetpage-opener";
+            context.appendChild(opener);
+          } else {
+            const placeholder = doc.createElement("div");
+            placeholder.id = "minibrowser-targetpage-opener";
+            placeholder.textContent = "本文なし";
+            context.appendChild(placeholder);
+          }
         } else {
-          compose.classList.add("minibrowser-no-image");
+          compose.classList.add("minibrowser-no-context");
         }
+
         compose.appendChild(form);
+      }
+
+      if (modeHeader && modeHeader.parentElement === doc.body) {
+        hideRange(doc.body.firstElementChild, modeHeader);
+      }
+      if (compose.parentElement === doc.body && thread.parentElement === doc.body) {
+        hideRange(compose.nextElementSibling, thread);
+        hideRange(thread.nextElementSibling);
       }
 
       Array.from(thread.children).forEach(element => {

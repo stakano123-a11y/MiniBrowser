@@ -13,6 +13,13 @@ final class CompactPageModeServiceTests: XCTestCase {
         XCTAssertTrue(script.contains("width=device-width, initial-scale=1"))
         XCTAssertTrue(script.contains(".minibrowser-targetpage-form .ftb2"))
         XCTAssertTrue(script.contains("minibrowser-targetpage-starter"))
+        XCTAssertTrue(script.contains("minibrowser-targetpage-context"))
+        XCTAssertTrue(script.contains("minibrowser-targetpage-opener"))
+        XCTAssertTrue(script.contains("-webkit-line-clamp: 4"))
+        XCTAssertTrue(script.contains("本文なし"))
+        XCTAssertTrue(script.contains("minibrowser-targetpage-page-extra"))
+        XCTAssertTrue(script.contains("#contres"))
+        XCTAssertTrue(script.contains("#ufm"))
         XCTAssertTrue(script.contains("minibrowser-own-response"))
         XCTAssertTrue(script.contains("MiniBrowser.TargetPageOwnPosts:"))
         XCTAssertTrue(script.contains("10 * 60 * 1000"),
