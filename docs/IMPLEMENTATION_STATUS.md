@@ -48,3 +48,5 @@ Workflow run `#15` compiled commit `962bac0`, ran 35 unit tests with zero failur
 
 The private-repository workflow now cancels duplicate runs for the same ref and limits the hosted macOS build job to 12 minutes. Codex defaults to GPT-5.6 Luna/MAX for routine work, with documented early escalation to Terra/High or Sol/High for progressively higher-risk implementation and diagnosis.
 The 19:01 TargetPage form and list change set was reverted after device testing found a regression: the focused thread view showed the full reply list and list cells could not open their threads. Workflow run `#17` and its IPA remain historical delivery evidence only; a new IPA must be built and delivered from the restored baseline before further device testing. Future TargetPage improvements will be isolated into small, independently verifiable changes.
+
+The first isolated follow-up applies only two independent behaviors: the TargetPage deletion key is forced to read-only `2310` when the form loads, changes, or submits; and the app auto-dismisses only the exact `img.targethost.net` Cookie retry alert. Form-position switching and list loading are intentionally unchanged.
