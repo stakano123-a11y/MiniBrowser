@@ -3,6 +3,7 @@ import Foundation
 
 @MainActor
 final class ThreadListViewModel: ObservableObject {
+    private static let listItemLimit = 60
     private enum Keys {
         static let sort = "ThreadListSort"
         static let expanded = "ThreadListExpanded"
@@ -22,6 +23,9 @@ final class ThreadListViewModel: ObservableObject {
     private var hasStarted = false
     private var loadTask: Task<Void, Never>?
     private var refreshLoopTask: Task<Void, Never>?
+    // A slow/failed request must not permanently starve cells later in the
+    // grid: the next automatic refresh starts after the last attempted cell.
+    private var nextThumbnailRetryID: String?
 
     init(service: ThreadListService = ThreadListService(),
          defaults: UserDefaults = .standard) {
@@ -86,10 +90,11 @@ final class ThreadListViewModel: ObservableObject {
         loadTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let loaded = try await service.fetchList(sort: sort, limit: 30)
+                let loaded = try await service.fetchList(sort: sort,
+                                                            limit: Self.listItemLimit)
                 try Task.checkCancellation()
                 guard selectedSort == sort else { return }
-                items = loaded
+                items = Self.mergingDisplayState(of: loaded, with: items)
                 isRefreshing = false
                 await loadThumbnails(for: loaded, sort: sort)
                 await loadOpenerTexts(for: loaded, sort: sort)
@@ -122,8 +127,14 @@ final class ThreadListViewModel: ObservableObject {
 
     private func loadThumbnails(for loaded: [ThreadListItem],
                                 sort: ThreadListSort) async {
-        for item in loaded {
+        let unresolved = loaded.filter { item in
+            items.first(where: { $0.id == item.id })?.thumbnailData == nil
+        }
+        let ordered = orderedForThumbnailRetry(unresolved)
+
+        for (index, item) in ordered.enumerated() {
             guard !Task.isCancelled, selectedSort == sort else { return }
+            advanceThumbnailRetry(after: index, in: ordered)
             do {
                 let data = try await service.thumbnailData(for: item,
                                                            referer: sort.url)
@@ -140,6 +151,44 @@ final class ThreadListViewModel: ObservableObject {
                 }
             }
             await Task.yield()
+        }
+    }
+
+    private func orderedForThumbnailRetry(_ unresolved: [ThreadListItem]) -> [ThreadListItem] {
+        guard let nextThumbnailRetryID,
+              let index = unresolved.firstIndex(where: { $0.id == nextThumbnailRetryID }) else {
+            return unresolved
+        }
+        return Array(unresolved[index...]) + Array(unresolved[..<index])
+    }
+
+    private func advanceThumbnailRetry(after index: Int,
+                                       in ordered: [ThreadListItem]) {
+        guard !ordered.isEmpty else {
+            nextThumbnailRetryID = nil
+            return
+        }
+        nextThumbnailRetryID = ordered[(index + 1) % ordered.count].id
+    }
+
+    nonisolated static func mergingDisplayState(of loaded: [ThreadListItem],
+                                                 with previous: [ThreadListItem]) -> [ThreadListItem] {
+        let previousByID = previous.reduce(into: [String: ThreadListItem]()) { result, item in
+            result[item.id] = item
+        }
+        return loaded.map { item in
+            guard let oldItem = previousByID[item.id] else { return item }
+
+            var merged = item
+            // Keep a successfully fetched image while a 60-second refresh is
+            // obtaining the new list. A changed thumbnail URL deliberately
+            // starts fresh so it can be fetched again.
+            if oldItem.thumbnailURL == item.thumbnailURL {
+                merged.thumbnailData = oldItem.thumbnailData
+                merged.thumbnailLoadFailed = oldItem.thumbnailLoadFailed
+            }
+            merged.openerText = oldItem.openerText
+            return merged
         }
     }
 

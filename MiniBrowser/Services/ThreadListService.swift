@@ -16,7 +16,7 @@ actor ThreadListService {
         self.session = session
     }
 
-    func fetchList(sort: ThreadListSort, limit: Int = 30) async throws -> [ThreadListItem] {
+    func fetchList(sort: ThreadListSort, limit: Int = 60) async throws -> [ThreadListItem] {
         var request = URLRequest(url: sort.url)
         request.timeoutInterval = 15
         request.cachePolicy = .reloadIgnoringLocalCacheData
@@ -101,7 +101,9 @@ actor ThreadListService {
     nonisolated static func makeThumbnailRequest(for url: URL,
                                                  referer: URL) -> URLRequest {
         var request = URLRequest(url: url)
-        request.timeoutInterval = 15
+        // List thumbnails are only 32 px in the UI. A shorter deadline keeps a
+        // stalled image from holding up every later cell until the next refresh.
+        request.timeoutInterval = 6
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
         request.setValue("image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
@@ -128,7 +130,7 @@ actor ThreadListService {
 
     nonisolated static func parseListHTML(_ html: String,
                                              baseURL: URL,
-                                             limit: Int = 30) -> [ThreadListItem] {
+                                             limit: Int = 60) -> [ThreadListItem] {
         guard limit > 0,
               let tableRange = html.range(
                 of: #"<table\b[^>]*\bid\s*=\s*['\"]cattable['\"][^>]*>([\s\S]*?)</table>"#,
@@ -147,8 +149,8 @@ actor ThreadListService {
         var items: [ThreadListItem] = []
 
         for cellMatch in cells {
-            guard items.count < limit,
-                  cellMatch.numberOfRanges > 1 else { break }
+            guard items.count < limit else { break }
+            guard cellMatch.numberOfRanges > 1 else { continue }
             let cell = nsTable.substring(with: cellMatch.range(at: 1))
             guard let href = firstCapture(in: cell,
                                           pattern: #"href\s*=\s*['\"]([^'\"]*res/(\d+)\.htm)['\"]"#,
@@ -166,10 +168,14 @@ actor ThreadListService {
             let replyText = firstCapture(in: cell,
                                          pattern: #"<font\b[^>]*>\s*(\d+)\s*</font>"#,
                                          index: 1)
+            let replyCount = Int(replyText ?? "") ?? 0
+            // 1000-reply threads cannot receive further replies. They are not
+            // useful in the compact thread picker and consume a list slot.
+            guard replyCount < 1_000 else { continue }
             items.append(ThreadListItem(id: id,
                                            threadURL: threadURL,
                                            thumbnailURL: thumbnailURL,
-                                           replyCount: Int(replyText ?? "") ?? 0,
+                                           replyCount: replyCount,
                                            thumbnailData: nil,
                                            openerText: nil))
         }

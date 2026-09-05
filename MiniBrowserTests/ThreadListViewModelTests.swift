@@ -27,4 +27,40 @@ final class ThreadListViewModelTests: XCTestCase {
         let restoredModel = ThreadListViewModel(defaults: defaults)
         XCTAssertEqual(restoredModel.openCount(for: item), 2)
     }
+
+    func testListRefreshPreservesMatchingThumbnailAndRetriesChangedImage() {
+        let originalURL = URL(string: "https://img.2chan.net/b/cat/123s.jpg")!
+        let item = ThreadListItem(
+            id: "123",
+            threadURL: URL(string: "https://img.2chan.net/b/res/123.htm")!,
+            thumbnailURL: originalURL,
+            replyCount: 5,
+            thumbnailData: Data([1, 2, 3]),
+            openerText: "以前の本文"
+        )
+        let unchanged = ThreadListItem(
+            id: "123",
+            threadURL: item.threadURL,
+            thumbnailURL: originalURL,
+            replyCount: 6,
+            thumbnailData: nil,
+            openerText: nil
+        )
+        let changedImage = ThreadListItem(
+            id: "123",
+            threadURL: item.threadURL,
+            thumbnailURL: URL(string: "https://img.2chan.net/b/cat/123-new.jpg")!,
+            replyCount: 7,
+            thumbnailData: nil,
+            openerText: nil
+        )
+
+        let retained = ThreadListViewModel.mergingDisplayState(of: [unchanged], with: [item])
+        XCTAssertEqual(retained.first?.thumbnailData, Data([1, 2, 3]))
+        XCTAssertEqual(retained.first?.openerText, "以前の本文")
+
+        let refreshed = ThreadListViewModel.mergingDisplayState(of: [changedImage], with: [item])
+        XCTAssertNil(refreshed.first?.thumbnailData)
+        XCTAssertEqual(refreshed.first?.openerText, "以前の本文")
+    }
 }

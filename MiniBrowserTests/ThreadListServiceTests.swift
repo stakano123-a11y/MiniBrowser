@@ -49,6 +49,28 @@ final class ThreadListServiceTests: XCTestCase {
         ).isEmpty)
     }
 
+    func testListParserExcludesCompletedThreadsAndReturnsSixtyItems() {
+        let cells = (1...65).map { number in
+            let replies = number == 3 ? 1_000 : number
+            return """
+            <td><a href='res/\(2000 + number).htm'>
+            <img src='/b/cat/\(number)s.jpg'></a><font>\(replies)</font></td>
+            """
+        }.joined(separator: "\n")
+        let html = "<table id='cattable'><tr>\(cells)</tr></table>"
+
+        let items = ThreadListService.parseListHTML(
+            html,
+            baseURL: ThreadListSort.momentum.url,
+            limit: 60
+        )
+
+        XCTAssertEqual(items.count, 60)
+        XCTAssertFalse(items.contains(where: { $0.replyCount >= 1_000 }))
+        XCTAssertEqual(items.first?.id, "2001")
+        XCTAssertEqual(items.last?.id, "2061")
+    }
+
     func testOpenerParserConvertsBreaksLinksAndEntities() {
         let html = """
         <html><div class="thre" data-res="123">
@@ -86,7 +108,7 @@ final class ThreadListServiceTests: XCTestCase {
                        referer.absoluteString)
         XCTAssertTrue(request.value(forHTTPHeaderField: "Accept")?.contains("image/*") == true)
         XCTAssertTrue(request.value(forHTTPHeaderField: "User-Agent")?.contains("iPhone") == true)
-        XCTAssertEqual(request.timeoutInterval, 15)
+        XCTAssertEqual(request.timeoutInterval, 6)
     }
 
     func testShiftJISDecoder() throws {
