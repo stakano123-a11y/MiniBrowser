@@ -24,6 +24,8 @@ MiniBrowser is a lightweight iPhone browser built with SwiftUI and `WKWebView`. 
 - A 500-entry redacted debug log; long-press the bottom toolbar and choose `ログをコピー` to copy the latest 50 entries
 - Reusable GitHub Actions unsigned IPA build and Windows/iCloud Drive delivery
 
+To conserve the private repository's GitHub-hosted macOS allowance, the IPA workflow is started manually after a verified change set instead of on every push. Windows static checks should be run before dispatching it.
+
 ## Build flow
 
 1. Push the project to a GitHub repository whose default branch is `main`.
