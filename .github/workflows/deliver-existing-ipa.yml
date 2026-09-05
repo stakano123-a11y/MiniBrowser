@@ -1,0 +1,62 @@
+name: Deliver an existing unsigned IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Workflow run ID that uploaded the IPA artifact
+        required: true
+        type: string
+      artifact_name:
+        description: Exact IPA artifact and file name
+        required: true
+        default: MiniBrowser.ipa
+        type: string
+      destination_filename:
+        description: Replacement filename in the configured iCloud Drive folder
+        required: true
+        default: MiniBrowser.ipa
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ios-ipa-delivery-${{ inputs.destination_filename }}
+  cancel-in-progress: false
+
+jobs:
+  deliver:
+    name: Deliver IPA to iCloud Drive
+    runs-on: [self-hosted, Windows, X64, ios-ipa-delivery]
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out delivery script
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Download existing IPA artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: ${{ runner.temp }}\ipa-delivery-${{ github.run_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Validate and copy IPA
+        shell: pwsh
+        env:
+          SOURCE_DIRECTORY: ${{ runner.temp }}\ipa-delivery-${{ github.run_id }}
+          IPA_FILENAME: ${{ inputs.artifact_name }}
+          DESTINATION_DIRECTORY: %MINIBROWSER_DELIVERY_DIRECTORY%
+          DESTINATION_FILENAME: ${{ inputs.destination_filename }}
+        run: |
+          & "$env:GITHUB_WORKSPACE\scripts\Deliver-Ipa.ps1" `
+            -SourceDirectory $env:SOURCE_DIRECTORY `
+            -SourceFileName $env:IPA_FILENAME `
+            -DestinationDirectory $env:DESTINATION_DIRECTORY `
+            -DestinationFileName $env:DESTINATION_FILENAME
