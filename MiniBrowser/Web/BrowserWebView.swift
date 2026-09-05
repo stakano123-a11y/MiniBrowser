@@ -14,6 +14,7 @@ struct BrowserWebView: UIViewRepresentable {
         configuration.websiteDataStore = .default()
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
+        CompactPageModeService.install(on: configuration.userContentController)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator

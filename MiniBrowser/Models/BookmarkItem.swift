@@ -19,12 +19,17 @@ struct BookmarkItem: Codable, Identifiable, Equatable {
     var name: String
     var content: String
     var kind: BookmarkKind
+    var autoRunDomain: String?
 
-    init(id: UUID = UUID(), name: String, content: String, kind: BookmarkKind) {
+    init(id: UUID = UUID(),
+         name: String,
+         content: String,
+         kind: BookmarkKind,
+         autoRunDomain: String? = nil) {
         self.id = id
         self.name = name
         self.content = content
         self.kind = kind
+        self.autoRunDomain = autoRunDomain
     }
 }
-

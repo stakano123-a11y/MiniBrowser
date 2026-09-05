@@ -33,12 +33,16 @@ struct ContentView: View {
                 showingBookmarks = true
             } label: {
                 Image(systemName: "bookmark")
+                    .foregroundStyle(.blue)
                     .frame(width: 30, height: 34)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .accessibilityLabel("ブックマーク")
 
             URLTextField(text: $model.urlText, onGo: model.openURLFromField)
-                .frame(height: 36)
+                .frame(minWidth: 0, maxWidth: .infinity, minHeight: 36, maxHeight: 36)
+                .layoutPriority(1)
 
             if model.isLoading {
                 ProgressView()
@@ -52,19 +56,28 @@ struct ContentView: View {
     }
 
     private var bottomBar: some View {
-        HStack(spacing: 0) {
-            toolbarButton("chevron.backward", label: "戻る", enabled: model.canGoBack, action: model.goBack)
-            toolbarButton("chevron.forward", label: "進む", enabled: model.canGoForward, action: model.goForward)
-            toolbarButton("arrow.clockwise", label: "更新", action: model.reload)
-            toolbarTextButton(model.userAgentButtonTitle,
-                              enabled: !model.isUAChanging,
-                              action: model.cycleUserAgent)
-            toolbarTextButton("Cookie",
-                              enabled: !model.isCookieRefreshing && !model.isLoading,
-                              action: model.refreshCookies)
-            toolbarTextButton("AP",
-                              enabled: !model.isAPRunning,
-                              action: model.startCellularReconnect)
+        GeometryReader { geometry in
+            let buttonWidth = geometry.size.width / 6
+            HStack(spacing: 0) {
+                toolbarButton("chevron.backward", label: "戻る", width: buttonWidth,
+                              enabled: model.canGoBack, action: model.goBack)
+                toolbarButton("chevron.forward", label: "進む", width: buttonWidth,
+                              enabled: model.canGoForward, action: model.goForward)
+                toolbarButton("arrow.clockwise", label: "更新", width: buttonWidth,
+                              action: model.reload)
+                toolbarTextButton(model.userAgentButtonTitle,
+                                  width: buttonWidth,
+                                  enabled: !model.isUAChanging,
+                                  action: model.cycleUserAgent)
+                toolbarTextButton("Cookie",
+                                  width: buttonWidth,
+                                  enabled: !model.isCookieRefreshing && !model.isLoading,
+                                  action: model.refreshCookies)
+                toolbarTextButton("AP",
+                                  width: buttonWidth,
+                                  enabled: !model.isAPRunning,
+                                  action: model.startCellularReconnect)
+            }
         }
         .frame(height: 48)
         .background(.bar)
@@ -75,22 +88,28 @@ struct ContentView: View {
 
     private func toolbarButton(_ systemName: String,
                                label: String,
+                               width: CGFloat,
                                enabled: Bool = true,
                                action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(width: width, height: 48)
         }
         .disabled(!enabled)
         .accessibilityLabel(label)
     }
 
     private func toolbarTextButton(_ title: String,
+                                   width: CGFloat,
                                    enabled: Bool = true,
                                    action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
-            .font(.caption.weight(.semibold))
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Button(action: action) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(width: width, height: 48)
+        }
             .disabled(!enabled)
     }
 }

@@ -236,6 +236,7 @@ final class BrowserViewModel: ObservableObject {
         isUAChanging = false
         updateCurrentURL(url)
         refreshNavigationState()
+        runAutomaticBookmarklets(for: url)
         if pendingCookieRefresh != nil {
             Task { [weak self] in
                 await self?.completeCookieRefreshAfterReload()
@@ -317,15 +318,20 @@ final class BrowserViewModel: ObservableObject {
         canGoForward = webView?.canGoForward ?? false
     }
 
-    private func executeBookmarklet(_ source: String) {
+    private func executeBookmarklet(_ source: String,
+                                    failureMessage: String = "ブックマークレット実行失敗") {
         guard let webView else {
-            showToast("ブックマークレット実行失敗", kind: .failure)
+            showToast(failureMessage, kind: .failure)
             return
         }
         let script = Self.bookmarkletScript(from: source)
-        webView.evaluateJavaScript(script) { [weak self] _, error in
+        // Bookmarklets often leave a DOM node or function as their completion
+        // value. Force a bridgeable Boolean result without changing their
+        // side effects; genuine JavaScript exceptions still reach the handler.
+        let executableScript = "\(script)\n; true;"
+        webView.evaluateJavaScript(executableScript) { [weak self] _, error in
             guard let self, let error else { return }
-            self.showToast("ブックマークレット実行失敗", kind: .failure)
+            self.showToast(failureMessage, kind: .failure)
             self.logStore.append(action: "Bookmarklet Execution", fields: [
                 ("URL", LogSanitizer.url(self.currentURL)),
                 ("UA", "\(self.selectedUAIndex + 1)/\(BrowserUserAgent.all.count) \(self.currentUserAgent.name)"),
@@ -334,6 +340,18 @@ final class BrowserViewModel: ObservableObject {
                 ("DETAIL", error.localizedDescription),
                 ("RESULT", "FAILED")
             ])
+        }
+    }
+
+    private func runAutomaticBookmarklets(for url: URL?) {
+        guard let host = url?.host else { return }
+        let matches = bookmarkStore.items.filter {
+            $0.kind == .bookmarklet &&
+                BookmarkAutoRunMatcher.matches(host: host, configuredDomain: $0.autoRunDomain)
+        }
+        for item in matches {
+            executeBookmarklet(item.content,
+                               failureMessage: "自動ブックマークレット実行失敗")
         }
     }
 

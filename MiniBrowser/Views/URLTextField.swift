@@ -21,6 +21,8 @@ struct URLTextField: UIViewRepresentable {
         field.returnKeyType = .go
         field.textContentType = .URL
         field.placeholder = "https://example.com"
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
         let toolbar = UIToolbar()
         toolbar.sizeToFit()
@@ -73,4 +75,3 @@ struct URLTextField: UIViewRepresentable {
         }
     }
 }
-

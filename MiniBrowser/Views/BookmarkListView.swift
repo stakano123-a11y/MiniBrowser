@@ -25,6 +25,11 @@ struct BookmarkListView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
+                            if let domain = item.autoRunDomain {
+                                Text("自動: \(domain)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.blue)
+                            }
                         }
                     }
                     .contextMenu {
@@ -69,16 +74,18 @@ struct BookmarkListView: View {
             .confirmationDialog("追加方法", isPresented: $showingAddOptions) {
                 Button("新規URL / Bookmarklet") {
                     editorRequest = BookmarkEditorRequest(existing: nil,
-                                                          initialName: "",
-                                                          initialContent: "",
-                                                          initialKind: .url)
+                                                           initialName: "",
+                                                           initialContent: "",
+                                                          initialKind: .url,
+                                                          initialAutoRunDomain: nil)
                 }
                 Button("現在ページを追加") {
                     guard let currentURL else { return }
                     editorRequest = BookmarkEditorRequest(existing: nil,
-                                                          initialName: currentURL.host ?? currentURL.absoluteString,
-                                                          initialContent: currentURL.absoluteString,
-                                                          initialKind: .url)
+                                                           initialName: currentURL.host ?? currentURL.absoluteString,
+                                                           initialContent: currentURL.absoluteString,
+                                                          initialKind: .url,
+                                                          initialAutoRunDomain: nil)
                 }
                 .disabled(currentURL == nil)
                 Button("キャンセル", role: .cancel) {}
@@ -96,8 +103,9 @@ struct BookmarkListView: View {
 
     private func edit(_ item: BookmarkItem) {
         editorRequest = BookmarkEditorRequest(existing: item,
-                                              initialName: item.name,
-                                              initialContent: item.content,
-                                              initialKind: item.kind)
+                                               initialName: item.name,
+                                               initialContent: item.content,
+                                               initialKind: item.kind,
+                                               initialAutoRunDomain: item.autoRunDomain)
     }
 }

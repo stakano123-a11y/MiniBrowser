@@ -3,6 +3,17 @@ import XCTest
 
 @MainActor
 final class BookmarkStoreTests: XCTestCase {
+    func testLegacyBookmarkWithoutAutoRunDomainStillDecodes() throws {
+        let id = UUID()
+        let json = """
+        {"id":"\(id.uuidString)","name":"Legacy","content":"javascript:true","kind":"bookmarklet"}
+        """
+        let item = try JSONDecoder().decode(BookmarkItem.self, from: Data(json.utf8))
+
+        XCTAssertEqual(item.id, id)
+        XCTAssertNil(item.autoRunDomain)
+    }
+
     func testOrderPersistsAfterDragMove() throws {
         let suiteName = "BookmarkStoreTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
