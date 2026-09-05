@@ -10,7 +10,7 @@ MiniBrowser is a lightweight iPhone browser built with SwiftUI and `WKWebView`. 
 - `セルラー再接続` through Apple's Shortcuts x-callback URL, automatic return, and public IPv4 comparison without reloading the page
 - Local bookmarks and unlimited-length multiline bookmarklets with edit/delete/drag reorder and exact-domain automatic execution
 - Conservative always-on `WKContentRuleList` ad/tracker blocking
-- A focused `img.targethost.net` thread layout that keeps the reply form, thread image, and locally tracked own replies
+- A focused `img.targethost.net` thread layout that keeps the reply form, a four-line opener summary with its image, and locally tracked own replies while hiding surrounding site chrome
 - Input-focus auto zoom prevention for small form fields while preserving manual pinch zoom
 - A 500-entry redacted debug log; long-press the bottom toolbar and choose `ログをコピー` to copy the latest 50 entries
 - Reusable GitHub Actions unsigned IPA build and Windows/iCloud Drive delivery
@@ -41,7 +41,7 @@ Windows cannot compile this iOS target. The authoritative compile/test check is 
 - Public IPv4 comes from the replaceable `IPAddressService` endpoint (`https://api.ipify.org?format=json`) with an 8-second request timeout.
 - Browser-family UA tokens are representative hardcoded profiles. iOS 26 freezes the OS portion at the final iOS 18 value for compatibility; changing a UA does not change the underlying WebKit engine.
 - Automatic bookmarklets run only when the configured domain exactly matches the current host. Their stored source is unchanged; execution forces a bridgeable Boolean completion value.
-- TargetPage focus mode runs only on `img.targethost.net/*/res/*.htm`. Pending reply text stays in per-tab session storage until matched or expired; persistent history contains response numbers only.
+- TargetPage focus mode runs only on `img.targethost.net/*/res/*.htm`. The opener image and four-line text summary sit beside the form; page headers, reload/footer controls, and other users' replies are hidden. Pending reply text stays in per-tab session storage until matched or expired; persistent history contains response numbers only.
 - Input-focus zoom prevention raises only editable controls rendered below 16 px to 16 px. It does not restrict the viewport scale or disable the WKWebView pinch gesture.
 
 Primary references:
