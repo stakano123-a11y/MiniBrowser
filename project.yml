@@ -37,6 +37,17 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
 
+  MiniBrowserUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: MiniBrowserUITests
+    dependencies:
+      - target: MiniBrowser
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+
 schemes:
   MiniBrowser:
     build:
@@ -45,3 +56,4 @@ schemes:
     test:
       targets:
         - MiniBrowserTests
+        - MiniBrowserUITests
