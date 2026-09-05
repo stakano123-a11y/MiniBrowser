@@ -77,6 +77,18 @@ final class ThreadListServiceTests: XCTestCase {
         XCTAssertEqual(request.timeoutInterval, 15)
     }
 
+    func testThumbnailRequestUsesListRefererAndImageHeaders() {
+        let imageURL = URL(string: "https://img.2chan.net/b/cat/123s.jpg")!
+        let referer = ThreadListSort.momentum.url
+        let request = ThreadListService.makeThumbnailRequest(for: imageURL,
+                                                                referer: referer)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Referer"),
+                       referer.absoluteString)
+        XCTAssertTrue(request.value(forHTTPHeaderField: "Accept")?.contains("image/*") == true)
+        XCTAssertTrue(request.value(forHTTPHeaderField: "User-Agent")?.contains("iPhone") == true)
+        XCTAssertEqual(request.timeoutInterval, 15)
+    }
+
     func testShiftJISDecoder() throws {
         let original = "対象ページ"
         let data = try XCTUnwrap(original.data(using: .shiftJIS))

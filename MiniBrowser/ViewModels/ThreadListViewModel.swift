@@ -6,6 +6,7 @@ final class ThreadListViewModel: ObservableObject {
     private enum Keys {
         static let sort = "ThreadListSort"
         static let expanded = "ThreadListExpanded"
+        static let openCounts = "ThreadListOpenCounts"
     }
 
     @Published private(set) var items: [ThreadListItem] = []
@@ -13,6 +14,7 @@ final class ThreadListViewModel: ObservableObject {
     @Published private(set) var isExpanded: Bool
     @Published private(set) var isRefreshing = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var openCounts: [String: Int]
 
     private let service: ThreadListService
     private let defaults: UserDefaults
@@ -31,6 +33,8 @@ final class ThreadListViewModel: ObservableObject {
         self.isExpanded = defaults.object(forKey: Keys.expanded) == nil
             ? true
             : defaults.bool(forKey: Keys.expanded)
+        self.openCounts = defaults.dictionary(forKey: Keys.openCounts)?
+            .compactMapValues { ($0 as? NSNumber)?.intValue } ?? [:]
     }
 
     deinit {
@@ -87,6 +91,7 @@ final class ThreadListViewModel: ObservableObject {
                 guard selectedSort == sort else { return }
                 items = loaded
                 isRefreshing = false
+                await loadThumbnails(for: loaded, sort: sort)
                 await loadOpenerTexts(for: loaded, sort: sort)
             } catch is CancellationError {
                 isRefreshing = false
@@ -94,6 +99,47 @@ final class ThreadListViewModel: ObservableObject {
                 isRefreshing = false
                 errorMessage = "更新失敗"
             }
+        }
+    }
+
+    func recordOpen(_ item: ThreadListItem) {
+        openCounts[item.id, default: 0] += 1
+        if openCounts.count > 1_000 {
+            let excess = openCounts.count - 1_000
+            let oldestIDs = openCounts.keys.sorted {
+                (Int($0) ?? 0) < (Int($1) ?? 0)
+            }.prefix(excess)
+            for id in oldestIDs {
+                openCounts.removeValue(forKey: id)
+            }
+        }
+        defaults.set(openCounts, forKey: Keys.openCounts)
+    }
+
+    func openCount(for item: ThreadListItem) -> Int {
+        openCounts[item.id, default: 0]
+    }
+
+    private func loadThumbnails(for loaded: [ThreadListItem],
+                                sort: ThreadListSort) async {
+        for item in loaded {
+            guard !Task.isCancelled, selectedSort == sort else { return }
+            do {
+                let data = try await service.thumbnailData(for: item,
+                                                           referer: sort.url)
+                guard !Task.isCancelled, selectedSort == sort else { return }
+                if let index = items.firstIndex(where: { $0.id == item.id }) {
+                    items[index].thumbnailData = data
+                    items[index].thumbnailLoadFailed = false
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                if let index = items.firstIndex(where: { $0.id == item.id }) {
+                    items[index].thumbnailLoadFailed = true
+                }
+            }
+            await Task.yield()
         }
     }
 

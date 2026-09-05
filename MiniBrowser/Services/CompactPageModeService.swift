@@ -143,7 +143,7 @@ enum CompactPageModeService {
             align-items: center !important;
             gap: 6px !important;
             width: 100% !important;
-            margin: 0 0 3px !important;
+            margin: -3px 0 2px !important;
           }
           #minibrowser-targetpage-draft-toggle {
             min-width: 62px !important;
@@ -274,10 +274,15 @@ enum CompactPageModeService {
       } catch (_) {}
 
       let actions = doc.getElementById("minibrowser-targetpage-comment-actions");
-      if (!actions && textarea && textarea.parentElement) {
+      if (!actions && textarea) {
         actions = doc.createElement("div");
         actions.id = "minibrowser-targetpage-comment-actions";
-        textarea.parentElement.insertBefore(actions, textarea);
+      }
+      const formTable = form.querySelector(".ftbl");
+      if (actions && actions.parentElement !== form) {
+        form.insertBefore(actions, formTable || form.firstChild);
+      } else if (actions && formTable && actions.nextElementSibling !== formTable) {
+        form.insertBefore(actions, formTable);
       }
       if (actions && submitButton) actions.appendChild(submitButton);
 
@@ -381,6 +386,10 @@ enum CompactPageModeService {
       }
 
       const modeHeader = previousModeHeader(form);
+      if (modeHeader) {
+        modeHeader.classList.add("minibrowser-targetpage-page-extra");
+        modeHeader.setAttribute("aria-hidden", "true");
+      }
 
       let compose = doc.getElementById("minibrowser-targetpage-compose");
       if (!compose) {

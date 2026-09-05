@@ -30,6 +30,8 @@ final class CompactPageModeServiceTests: XCTestCase {
         XCTAssertTrue(script.contains("minibrowser-targetpage-delete-help"))
         XCTAssertTrue(script.contains("disableFormPositionToggle"))
         XCTAssertTrue(script.contains("minibrowser-targetpage-comment-actions"))
+        XCTAssertTrue(script.contains("modeHeader.classList.add(\"minibrowser-targetpage-page-extra\")"))
+        XCTAssertTrue(script.contains("form.insertBefore(actions, formTable || form.firstChild)"))
     }
 
     func testScriptIncludesGlobalDraftRetentionControls() {

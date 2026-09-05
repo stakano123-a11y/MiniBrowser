@@ -39,6 +39,10 @@ Assert-Contains $focusModeFile 'disableFormPositionToggle' 'disabled TargetPage 
 Assert-Contains $listServiceFile 'bytes=0-32767' 'bounded TargetPage opener request'
 Assert-Contains $listServiceFile 'limit:\s*Int\s*=\s*30' 'thirty-item TargetPage list limit'
 Assert-Contains $listViewFile 'LazyVGrid' 'native two-column TargetPage list'
+Assert-Contains $listViewFile 'model\.recordOpen\(item\)' 'persistent TargetPage list open counter'
+Assert-Contains $listViewFile 'thumbnailData' 'explicit TargetPage thumbnail rendering'
+Assert-Contains $listServiceFile 'makeThumbnailRequest' 'explicit TargetPage thumbnail request'
+Assert-Contains $focusModeFile 'modeHeader\.classList\.add' 'hidden TargetPage response-mode header'
 
 $listViewModelText = Get-Content -LiteralPath $listViewModelFile -Raw -Encoding UTF8
 if ($listViewModelText -match 'withTaskGroup|withThrowingTaskGroup') {

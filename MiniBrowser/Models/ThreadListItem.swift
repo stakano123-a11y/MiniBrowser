@@ -32,5 +32,7 @@ struct ThreadListItem: Identifiable, Equatable, Sendable {
     let threadURL: URL
     let thumbnailURL: URL
     let replyCount: Int
+    var thumbnailData: Data?
+    var thumbnailLoadFailed = false
     var openerText: String?
 }

@@ -10,6 +10,7 @@ enum ThreadListError: Error {
 actor ThreadListService {
     private let session: URLSession
     private var openerCache: [String: String] = [:]
+    private var thumbnailCache: [URL: Data] = [:]
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -56,11 +57,60 @@ actor ThreadListService {
         return text
     }
 
+    func thumbnailData(for item: ThreadListItem,
+                       referer: URL) async throws -> Data {
+        if let cached = thumbnailCache[item.thumbnailURL] {
+            return cached
+        }
+
+        var lastError: Error = ThreadListError.invalidResponse
+        for attempt in 0..<2 {
+            do {
+                let request = Self.makeThumbnailRequest(for: item.thumbnailURL,
+                                                        referer: referer)
+                let (data, response) = try await session.data(for: request)
+                guard let http = response as? HTTPURLResponse,
+                      http.statusCode == 200,
+                      !data.isEmpty,
+                      http.value(forHTTPHeaderField: "Content-Type")?
+                        .lowercased().hasPrefix("image/") == true else {
+                    throw ThreadListError.invalidResponse
+                }
+                thumbnailCache[item.thumbnailURL] = data
+                return data
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                lastError = error
+                if attempt == 0 {
+                    try await Task.sleep(for: .milliseconds(250))
+                }
+            }
+        }
+        throw lastError
+    }
+
     nonisolated static func makeOpenerRequest(for url: URL) -> URLRequest {
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
         request.setValue("bytes=0-32767", forHTTPHeaderField: "Range")
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        return request
+    }
+
+    nonisolated static func makeThumbnailRequest(for url: URL,
+                                                 referer: URL) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
+        request.setValue("image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+                         forHTTPHeaderField: "Accept")
+        request.setValue(
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) " +
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1",
+            forHTTPHeaderField: "User-Agent"
+        )
         return request
     }
 
@@ -120,6 +170,7 @@ actor ThreadListService {
                                            threadURL: threadURL,
                                            thumbnailURL: thumbnailURL,
                                            replyCount: Int(replyText ?? "") ?? 0,
+                                           thumbnailData: nil,
                                            openerText: nil))
         }
         return items
