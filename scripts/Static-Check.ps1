@@ -14,6 +14,14 @@ function Assert-Contains {
     }
 }
 
+function Assert-NotContains {
+    param([string]$Path, [string]$Pattern, [string]$Description)
+    $content = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    if ($content -match $Pattern) {
+        throw "Unexpected content: $Description ($Path)"
+    }
+}
+
 $projectFile = Join-Path $projectRoot 'project.yml'
 $uaFile = Join-Path $projectRoot 'MiniBrowser\Models\BrowserUserAgent.swift'
 $viewModelFile = Join-Path $projectRoot 'MiniBrowser\ViewModels\BrowserViewModel.swift'
@@ -38,8 +46,9 @@ Assert-Contains $inputZoomFile 'fontSize\s*<\s*16' 'small input font-size guard'
 Assert-Contains $inputZoomFile 'forMainFrameOnly:\s*false' 'input auto-zoom prevention in subframes'
 Assert-Contains $focusModeFile 'MiniBrowser\.TargetPageDraftEnabled' 'global TargetPage draft setting'
 Assert-Contains $focusModeFile 'clearEmail' 'empty TargetPage email guard'
-Assert-Contains $focusModeFile 'fixedDeleteKey\s*=\s*"2310"' 'fixed TargetPage deletion key'
-Assert-Contains $focusModeFile 'enforceDeleteKey' 'TargetPage deletion key enforcement'
+Assert-Contains $focusModeFile 'preserveDeleteKey' 'preserved TargetPage deletion key'
+Assert-NotContains $focusModeFile 'fixedDeleteKey' 'no forced TargetPage deletion key'
+Assert-NotContains $focusModeFile 'deleteInput\.readOnly\s*=\s*true' 'editable TargetPage deletion key'
 Assert-Contains $focusModeFile 'textarea\.rows\s*=\s*2' 'compact TargetPage comment field'
 Assert-Contains $focusModeFile 'disableFormPositionToggle' 'disabled TargetPage form position switch'
 Assert-Contains $listServiceFile 'bytes=0-32767' 'bounded TargetPage opener request'
@@ -95,6 +104,7 @@ if ($plist.plist.dict.key -notcontains 'CFBundleURLTypes') {
 if ($plist.plist.dict.key -notcontains 'UISupportedInterfaceOrientations') {
     throw 'Portrait orientation declaration is missing from Info.plist.'
 }
+
 if ($plist.plist.dict.key -notcontains 'CFBundleIconName') {
     throw 'CFBundleIconName is missing from Info.plist.'
 }

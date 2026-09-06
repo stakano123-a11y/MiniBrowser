@@ -239,26 +239,15 @@ enum CompactPageModeService {
       form.addEventListener("submit", clearEmail, true);
 
       const deleteInput = form.querySelector('input[name="pwd"]');
-      const fixedDeleteKey = "2310";
-      function enforceDeleteKey() {
+      // This value belongs to the page and its user. Do not overwrite it on
+      // load, edit, or submit; the browser only hides the surrounding help.
+      function preserveDeleteKey() {
         if (!deleteInput) return;
-        if (deleteInput.value !== fixedDeleteKey) deleteInput.value = fixedDeleteKey;
-        if (deleteInput.defaultValue !== fixedDeleteKey) deleteInput.defaultValue = fixedDeleteKey;
-        if (deleteInput.getAttribute("value") !== fixedDeleteKey) {
-          deleteInput.setAttribute("value", fixedDeleteKey);
-        }
         if (deleteInput.getAttribute("autocomplete") !== "off") {
           deleteInput.setAttribute("autocomplete", "off");
         }
-        if (!deleteInput.readOnly) deleteInput.readOnly = true;
       }
-      enforceDeleteKey();
-      if (deleteInput && !deleteInput.dataset.minibrowserFixedDeleteKey) {
-        deleteInput.dataset.minibrowserFixedDeleteKey = "true";
-        deleteInput.addEventListener("input", enforceDeleteKey, true);
-        deleteInput.addEventListener("change", enforceDeleteKey, true);
-      }
-      form.addEventListener("submit", enforceDeleteKey, true);
+      preserveDeleteKey();
 
       const deleteHelp = deleteInput && deleteInput.parentElement &&
         deleteInput.parentElement.querySelector("small");
