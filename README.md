@@ -18,7 +18,7 @@ MiniBrowser is a lightweight iPhone browser built with SwiftUI and `WKWebView`. 
 - `セルラー再接続` through Apple's Shortcuts x-callback URL, automatic return, and public IPv4 comparison without reloading the page
 - Local bookmarks and unlimited-length multiline bookmarklets with edit/delete/drag reorder and exact-domain automatic execution
 - Conservative always-on `WKContentRuleList` ad/tracker blocking
-- A focused `img.targethost.net` thread layout that keeps the reply form, a four-line opener summary with its image, and locally tracked own replies while hiding surrounding site chrome
+- A focused `configured target host` thread layout that keeps the reply form, a four-line opener summary with its image, and locally tracked own replies while hiding surrounding site chrome
 - While MiniBrowser remains launched, an image selected through the existing TargetPage handwriting bookmarklet is held only in memory and redrawn after a supported thread reload/navigation with one random pixel added; it is never written to browser storage or logs
 - A collapsible native two-column official TargetPage list with momentum/list/reply-count sorting, up to 60 active threads, and thumbnail retry on refresh
 - Input-focus auto zoom prevention for small form fields while preserving manual pinch zoom
@@ -53,7 +53,7 @@ Windows cannot compile this iOS target. The authoritative compile/test check is 
 - Public IPv4 comes from the replaceable `IPAddressService` endpoint (`https://api.ipify.org?format=json`) with an 8-second request timeout.
 - Browser-family UA tokens are representative hardcoded profiles. iOS 26 freezes the OS portion at the final iOS 18 value for compatibility; changing a UA does not change the underlying WebKit engine.
 - Automatic bookmarklets run only when the configured domain exactly matches the current host. Their stored source is unchanged; execution forces a bridgeable Boolean completion value.
-- TargetPage focus mode runs only on `img.targethost.net/*/res/*.htm`. The opener image and four-line text summary sit beside the form; page headers, reload/footer controls, and other users' replies are hidden. Pending reply text stays in per-tab session storage until matched or expired; persistent history contains response numbers only.
+- TargetPage focus mode runs only on `configured target host/*/res/*.htm`. The opener image and four-line text summary sit beside the form; page headers, reload/footer controls, and other users' replies are hidden. Pending reply text stays in per-tab session storage until matched or expired; persistent history contains response numbers only.
 - Input-focus zoom prevention raises only editable controls rendered below 16 px to 16 px. It does not restrict the viewport scale or disable the WKWebView pinch gesture.
 
 Primary references:

@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$PublicMetadata
+)
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
@@ -24,6 +26,7 @@ $listViewFile = Join-Path $projectRoot 'MiniBrowser\Views\ThreadListView.swift'
 $listViewModelFile = Join-Path $projectRoot 'MiniBrowser\ViewModels\ThreadListViewModel.swift'
 $infoFile = Join-Path $projectRoot 'MiniBrowser\Info.plist'
 $workflowFile = Join-Path $projectRoot '.github\workflows\reusable-ios-unsigned-build-deliver.yml'
+$deliveryScriptFile = Join-Path $projectRoot 'scripts\Deliver-Ipa.ps1'
 $specFile = Join-Path $projectRoot 'MiniBrowser_Codex_Spec.md'
 $agentsFile = Join-Path $projectRoot 'AGENTS.md'
 
@@ -67,6 +70,7 @@ Assert-Contains $viewModelFile 'minibrowser://return' 'MiniBrowser callback URL'
 Assert-Contains $viewModelFile 'evaluateJavaScript' 'bookmarklet execution'
 Assert-Contains $workflowFile 'CODE_SIGNING_ALLOWED=NO' 'unsigned build'
 Assert-Contains $workflowFile 'actions/download-artifact@v8' 'artifact download on Windows'
+Assert-Contains $deliveryScriptFile 'MINIBROWSER_DELIVERY_DIRECTORY' 'runner-local delivery directory'
 Assert-Contains $specFile '# MiniBrowser 実装仕様書' 'canonical product specification'
 Assert-Contains $agentsFile 'quietarc-lab/MiniBrowser' 'canonical repository rule'
 Assert-Contains $agentsFile 'GitHub Issues' 'issue handoff rule'
@@ -115,8 +119,42 @@ if ($cookieValueLeaks) {
     throw 'Cookie values must not be accessed or logged.'
 }
 
+if ($PublicMetadata) {
+    # Construct audit needles without retaining legacy identifiers as searchable text.
+    $legacySiteTerm = -join [char[]](102, 117, 116, 97, 98, 97)
+    $legacyJapaneseTerm = -join [char[]](0x3075, 0x305f, 0x3070)
+    $legacyBoardTerm = -join [char[]](0x4e8c, 0x6b21, 0x5143, 0x88cf)
+    $legacyCompanionTerm = -join [char[]](102, 117, 116, 97, 107, 117, 114, 111)
+    $legacyAccountTerm = -join [char[]](115, 116, 97, 107, 97, 110, 111, 49, 50, 51, 45, 97, 49, 49, 121)
+    $legacyHostToken = -join [char[]](50, 99, 104, 97, 110)
+    $legacyLocalUser = -join [char[]](115, 116, 97, 107, 97)
+    $legacyPathTerm = "C:\Users\$legacyLocalUser"
+    $forbiddenTerms = @($legacySiteTerm, $legacyJapaneseTerm, $legacyBoardTerm, $legacyCompanionTerm, $legacyAccountTerm, $legacyPathTerm)
+    $forbiddenPattern = '(?i)' + (($forbiddenTerms | ForEach-Object { [regex]::Escape($_) }) -join '|')
+    $allowedHostPattern = '(?i)(?:[a-z0-9-]+\.)*' + [regex]::Escape("$legacyHostToken.net")
+    $allowedEndpoint = "$legacySiteTerm.php"
+    $textFiles = @(git -C $projectRoot ls-files | Where-Object { $_ -notmatch '\.(png|jpe?g|gif|webp|ipa|zip)$' })
+    foreach ($relativePath in $textFiles) {
+        $path = Join-Path $projectRoot $relativePath
+        $content = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+        $content = $content -replace $allowedHostPattern, ''
+        $content = $content.Replace($allowedEndpoint, '')
+        if ($content -match $forbiddenPattern) {
+            throw "Public metadata check found a forbidden term in $relativePath."
+        }
+    }
+
+    $historyMetadata = git -C $projectRoot log --all --format='%an%n%ae%n%s'
+    if ($historyMetadata -match $forbiddenPattern) {
+        throw 'Public metadata check found a forbidden term in reachable Git history.'
+    }
+}
+
 Write-Host 'Static checks passed.'
 Write-Host "User agents: $uaCount"
 Write-Host 'Distinct user-agent strings: 10'
 Write-Host 'Cookie value access: none'
 Write-Host 'Deployment target: iOS 26.0'
+if ($PublicMetadata) {
+    Write-Host 'Public metadata audit: passed'
+}

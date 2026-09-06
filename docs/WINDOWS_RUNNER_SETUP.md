@@ -10,10 +10,10 @@ The workflow performs the iOS build only on GitHub's `macos-26` runner. The Wind
 4. During configuration, add the custom label `ios-ipa-delivery`. For an iCloud destination, run under the signed-in Windows user: either use a service configured with that account, or create a logon task that starts `C:\actions-runner\run.cmd` hidden.
 5. Confirm that the runner has all four labels: `self-hosted`, `Windows`, `X64`, and `ios-ipa-delivery`.
 6. Keep the runner current enough for Node 24-based actions (`actions/checkout@v6` requires runner 2.329.0 or later for all supported scenarios).
-7. Confirm that the service account can write to `%MINIBROWSER_DELIVERY_DIRECTORY%`. Running the service under a system account may not have access to the signed-in user's iCloud Drive; use the signed-in user account if necessary.
-8. Confirm the directory already exists. The delivery script intentionally does not create or guess a replacement iCloud path.
+7. Set the user-level `MINIBROWSER_DELIVERY_DIRECTORY` environment variable to the existing folder that should receive delivered IPAs. The value is kept only on the runner PC and is never stored in this repository or printed by the workflow.
+8. Confirm that the interactive runner account can write to that directory. The delivery script intentionally does not create or guess a replacement location.
 
-On this PC the runner is registered as `MiniBrowser-Windows`. Task Scheduler entry `GitHub Actions MiniBrowser Delivery` starts it at logon as user `staka`, with limited privileges. This avoids granting a system service access to the user's iCloud Drive. The runner must be online before dispatching an IPA workflow. If the task was created after the current Windows sign-in, start it once from Task Scheduler; it will run automatically at subsequent sign-ins. The macOS build can still finish while it is offline, but a job queued before the runner was online may need the delivery-only workflow below.
+For example, set the variable in a PowerShell session with `setx MINIBROWSER_DELIVERY_DIRECTORY "D:\IPA-Delivery"`, then start or restart the runner so it inherits the new value. A logon task is suitable for folders that need the interactive Windows account. The runner must be online before dispatching an IPA workflow. The macOS build can still finish while it is offline, but a queued delivery may need the delivery-only workflow below.
 
 The registration token shown by GitHub is short-lived. Do not commit it, an Apple ID, a password, a certificate, a provisioning profile, a pairing file, or a device identifier.
 
@@ -31,7 +31,6 @@ After an IPA exists locally, run:
 .\scripts\Deliver-Ipa.ps1 `
   -SourceDirectory 'C:\path\to\artifact' `
   -SourceFileName 'AppA.ipa' `
-  -DestinationDirectory '%MINIBROWSER_DELIVERY_DIRECTORY%' `
   -DestinationFileName 'AppA.ipa'
 ```
 

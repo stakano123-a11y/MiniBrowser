@@ -22,11 +22,6 @@ on:
         required: false
         default: ''
         type: string
-      destination_directory:
-        description: Existing directory on the Windows runner
-        required: false
-        default: '%MINIBROWSER_DELIVERY_DIRECTORY%'
-        type: string
       destination_filename:
         description: Final IPA filename on Windows
         required: true
@@ -167,7 +162,7 @@ jobs:
           retention-days: 14
 
   deliver:
-    name: Deliver IPA to iCloud Drive
+    name: Deliver IPA to configured directory
     needs: build
     runs-on: ${{ fromJSON(inputs.windows_runner_labels) }}
     timeout-minutes: 10
@@ -190,11 +185,9 @@ jobs:
         env:
           SOURCE_DIRECTORY: ${{ runner.temp }}\ipa-delivery-${{ github.run_id }}
           IPA_FILENAME: ${{ inputs.ipa_filename || inputs.destination_filename }}
-          DESTINATION_DIRECTORY: ${{ inputs.destination_directory }}
           DESTINATION_FILENAME: ${{ inputs.destination_filename }}
         run: |
           & "$env:GITHUB_WORKSPACE\scripts\Deliver-Ipa.ps1" `
             -SourceDirectory $env:SOURCE_DIRECTORY `
             -SourceFileName $env:IPA_FILENAME `
-            -DestinationDirectory $env:DESTINATION_DIRECTORY `
             -DestinationFileName $env:DESTINATION_FILENAME

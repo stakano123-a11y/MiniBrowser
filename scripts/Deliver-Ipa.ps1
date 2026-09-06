@@ -8,24 +8,29 @@ param(
     [string]$SourceFileName,
 
     [Parameter(Mandatory = $true)]
-    [string]$DestinationDirectory,
-
-    [Parameter(Mandatory = $true)]
     [ValidatePattern('\.ipa$')]
     [string]$DestinationFileName
 )
 
 $ErrorActionPreference = 'Stop'
 
+$destinationDirectory = [Environment]::GetEnvironmentVariable(
+    'MINIBROWSER_DELIVERY_DIRECTORY',
+    [EnvironmentVariableTarget]::Process
+)
+if ([string]::IsNullOrWhiteSpace($destinationDirectory)) {
+    throw 'The delivery directory is not configured on this runner.'
+}
+
 if (-not (Test-Path -LiteralPath $SourceDirectory -PathType Container)) {
     throw "Source directory does not exist: $SourceDirectory"
 }
-if (-not (Test-Path -LiteralPath $DestinationDirectory -PathType Container)) {
-    throw "Destination directory does not exist: $DestinationDirectory"
+if (-not (Test-Path -LiteralPath $destinationDirectory -PathType Container)) {
+    throw 'The configured delivery directory does not exist.'
 }
 
 $sourceRoot = (Resolve-Path -LiteralPath $SourceDirectory).Path
-$destinationRoot = (Resolve-Path -LiteralPath $DestinationDirectory).Path
+$destinationRoot = (Resolve-Path -LiteralPath $destinationDirectory).Path
 $sourcePath = Join-Path -Path $sourceRoot -ChildPath $SourceFileName
 $destinationPath = Join-Path -Path $destinationRoot -ChildPath $DestinationFileName
 
@@ -65,7 +70,7 @@ try {
     }
 
     $item = Get-Item -LiteralPath $destinationPath
-    Write-Host "Delivered: $($item.FullName)"
+    Write-Host "Delivered package: $DestinationFileName"
     Write-Host "Size: $($item.Length) bytes"
     Write-Host "SHA256: $destinationHash"
 }
@@ -74,4 +79,3 @@ finally {
         Remove-Item -LiteralPath $temporaryPath -Force
     }
 }
-

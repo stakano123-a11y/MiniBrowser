@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   deliver:
-    name: Deliver IPA to iCloud Drive
+    name: Deliver IPA to configured directory
     runs-on: [self-hosted, Windows, X64, ios-ipa-delivery]
     timeout-minutes: 10
 
@@ -52,11 +52,9 @@ jobs:
         env:
           SOURCE_DIRECTORY: ${{ runner.temp }}\ipa-delivery-${{ github.run_id }}
           IPA_FILENAME: ${{ inputs.artifact_name }}
-          DESTINATION_DIRECTORY: %MINIBROWSER_DELIVERY_DIRECTORY%
           DESTINATION_FILENAME: ${{ inputs.destination_filename }}
         run: |
           & "$env:GITHUB_WORKSPACE\scripts\Deliver-Ipa.ps1" `
             -SourceDirectory $env:SOURCE_DIRECTORY `
             -SourceFileName $env:IPA_FILENAME `
-            -DestinationDirectory $env:DESTINATION_DIRECTORY `
             -DestinationFileName $env:DESTINATION_FILENAME
