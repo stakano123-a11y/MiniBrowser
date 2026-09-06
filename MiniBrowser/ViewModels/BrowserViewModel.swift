@@ -18,6 +18,7 @@ final class BrowserViewModel: ObservableObject {
     @Published private(set) var isUAChanging = false
     @Published private(set) var isCookieRefreshing = false
     @Published private(set) var isAPRunning = false
+    @Published private(set) var isIdentityRefreshInProgress = false
     @Published private(set) var toasts: [ToastMessage] = []
 
     let bookmarkStore: BookmarkStore
@@ -35,10 +36,12 @@ final class BrowserViewModel: ObservableObject {
         let beforeCount: Int
         let deletedCount: Int
         let deletionConfirmed: Bool
+        let identityRefresh: Bool
     }
 
     private struct PendingAP {
         let beforeIPv4: String?
+        let reloadAfterCompletion: Bool
     }
 
     init(defaults: UserDefaults = .standard,
@@ -105,11 +108,22 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func cycleUserAgent() {
-        guard !isUAChanging else { return }
+        guard !isIdentityRefreshInProgress,
+              !isUAChanging,
+              !isCookieRefreshing,
+              !isAPRunning,
+              !isLoading,
+              let webView,
+              webView.url?.host != nil else {
+            showToast("UA更新を開始できません", kind: .warning)
+            return
+        }
         selectedUAIndex = (selectedUAIndex + 1) % BrowserUserAgent.all.count
         defaults.set(selectedUAIndex, forKey: Keys.userAgentIndex)
-        webView?.customUserAgent = currentUserAgent.value
-        showToast("UA変更: \(currentUserAgent.name) (\(selectedUAIndex + 1)/\(BrowserUserAgent.all.count))",
+        webView.customUserAgent = currentUserAgent.value
+        isUAChanging = true
+        isIdentityRefreshInProgress = true
+        showToast("UA変更後にCookie更新とAP再接続を開始します",
                   kind: .success)
         logStore.append(action: "User Agent Change", fields: [
             ("URL", LogSanitizer.url(currentURL)),
@@ -117,70 +131,45 @@ final class BrowserViewModel: ObservableObject {
             ("RESULT", "CHANGED")
         ])
 
-        if webView?.url != nil {
-            isUAChanging = true
-            webView?.reload()
+        Task { [weak self] in
+            await self?.deleteRelatedCookiesForRefresh(identityRefresh: true)
         }
     }
 
     func refreshCookies() {
         guard !isCookieRefreshing,
+              !isIdentityRefreshInProgress,
               !isLoading,
-              let webView,
-              let host = webView.url?.host?.lowercased() else {
+              webView?.url?.host != nil else {
             showToast("Cookie確認失敗", kind: .warning)
             return
         }
 
         isCookieRefreshing = true
-        Task { [weak self, weak webView] in
-            guard let self, let webView else { return }
-            let store = webView.configuration.websiteDataStore.httpCookieStore
-            let before = await store.miniBrowserAllCookies()
-            let targets = before.filter { CookieDomainMatcher.isRelated(cookieDomain: $0.domain, toHost: host) }
-
-            guard !targets.isEmpty else {
-                self.logCookieRefresh(host: host,
-                                      before: 0,
-                                      deleted: 0,
-                                      after: 0,
-                                      result: "NO_COOKIE")
-                self.showToast("Cookieなし", kind: .warning)
-                self.isCookieRefreshing = false
-                return
-            }
-
-            for cookie in targets {
-                await store.miniBrowserDelete(cookie)
-            }
-
-            let afterDeletion = await store.miniBrowserAllCookies()
-            let remaining = afterDeletion.filter {
-                CookieDomainMatcher.isRelated(cookieDomain: $0.domain, toHost: host)
-            }
-            let deletedCount = max(0, targets.count - remaining.count)
-            self.pendingCookieRefresh = PendingCookieRefresh(host: host,
-                                                             beforeCount: targets.count,
-                                                             deletedCount: deletedCount,
-                                                             deletionConfirmed: remaining.isEmpty)
-            if webView.reload() == nil {
-                self.failPendingCookieRefresh(result: "RELOAD_NOT_STARTED")
-            }
+        Task { [weak self] in
+            await self?.deleteRelatedCookiesForRefresh(identityRefresh: false)
         }
     }
 
     func startCellularReconnect() {
+        startCellularReconnect(reloadAfterCompletion: false)
+    }
+
+    private func startCellularReconnect(reloadAfterCompletion: Bool) {
         guard !isAPRunning else { return }
         isAPRunning = true
 
         Task { [weak self] in
             guard let self else { return }
-            let before = try? await ipService.fetchIPv4()
-            self.pendingAP = PendingAP(beforeIPv4: before)
+            let before = try? await ipService.fetchIPv4(userAgent: currentUserAgent.value)
+            self.pendingAP = PendingAP(beforeIPv4: before,
+                                       reloadAfterCompletion: reloadAfterCompletion)
 
             guard let shortcutURL = Self.cellularReconnectURL(),
                   await Self.openExternalURL(shortcutURL) else {
-                self.finishAPFailure(status: "SHORTCUT_OPEN_FAILED", before: before)
+                self.finishAPFailure(status: "SHORTCUT_OPEN_FAILED",
+                                     before: before,
+                                     reloadAfterCompletion: reloadAfterCompletion)
                 return
             }
         }
@@ -245,7 +234,9 @@ final class BrowserViewModel: ObservableObject {
 
     func navigationFinished(url: URL?) {
         isLoading = false
-        isUAChanging = false
+        if !isIdentityRefreshInProgress {
+            isUAChanging = false
+        }
         updateCurrentURL(url)
         refreshNavigationState()
         runAutomaticBookmarklets(for: url)
@@ -258,7 +249,9 @@ final class BrowserViewModel: ObservableObject {
 
     func navigationFailed(url: URL?, error: Error) {
         isLoading = false
-        isUAChanging = false
+        if !isIdentityRefreshInProgress {
+            isUAChanging = false
+        }
         updateCurrentURL(url)
         refreshNavigationState()
         showToast("読み込み失敗", kind: .failure)
@@ -275,7 +268,9 @@ final class BrowserViewModel: ObservableObject {
 
     func navigationTimedOut(url: URL?) {
         isLoading = false
-        isUAChanging = false
+        if !isIdentityRefreshInProgress {
+            isUAChanging = false
+        }
         updateCurrentURL(url)
         refreshNavigationState()
         showToast("読み込みタイムアウト", kind: .failure)
@@ -297,14 +292,18 @@ final class BrowserViewModel: ObservableObject {
         let status = URLComponents(url: url, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "status" })?.value ?? "success"
         guard status == "success" else {
-            finishAPFailure(status: "CALLBACK_\(status.uppercased())", before: context.beforeIPv4)
+            finishAPFailure(status: "CALLBACK_\(status.uppercased())",
+                            before: context.beforeIPv4,
+                            reloadAfterCompletion: context.reloadAfterCompletion)
             return
         }
 
         Task { [weak self] in
             guard let self else { return }
             let after = await self.fetchIPv4AfterRecovery()
-            self.completeAP(before: context.beforeIPv4, after: after)
+            self.completeAP(before: context.beforeIPv4,
+                            after: after,
+                            reloadAfterCompletion: context.reloadAfterCompletion)
         }
     }
 
@@ -315,6 +314,53 @@ final class BrowserViewModel: ObservableObject {
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
             self?.toasts.removeAll { $0.id == toast.id }
+        }
+    }
+
+    private func deleteRelatedCookiesForRefresh(identityRefresh: Bool) async {
+        guard let webView,
+              let host = webView.url?.host?.lowercased() else {
+            if identityRefresh {
+                finishIdentityRefresh()
+            }
+            isCookieRefreshing = false
+            showToast("Cookie確認失敗", kind: .warning)
+            return
+        }
+
+        let store = webView.configuration.websiteDataStore.httpCookieStore
+        let before = await store.miniBrowserAllCookies()
+        let targets = before.filter {
+            CookieDomainMatcher.isRelated(cookieDomain: $0.domain, toHost: host)
+        }
+
+        if targets.isEmpty, !identityRefresh {
+            logCookieRefresh(host: host, before: 0, deleted: 0, after: 0, result: "NO_COOKIE")
+            showToast("Cookieなし", kind: .warning)
+            isCookieRefreshing = false
+            return
+        }
+
+        for cookie in targets {
+            await store.miniBrowserDelete(cookie)
+        }
+
+        let afterDeletion = await store.miniBrowserAllCookies()
+        let remaining = afterDeletion.filter {
+            CookieDomainMatcher.isRelated(cookieDomain: $0.domain, toHost: host)
+        }
+        pendingCookieRefresh = PendingCookieRefresh(
+            host: host,
+            beforeCount: targets.count,
+            deletedCount: max(0, targets.count - remaining.count),
+            deletionConfirmed: remaining.isEmpty,
+            identityRefresh: identityRefresh
+        )
+
+        if identityRefresh {
+            startCellularReconnect(reloadAfterCompletion: true)
+        } else if webView.reload() == nil {
+            failPendingCookieRefresh(result: "RELOAD_NOT_STARTED")
         }
     }
 
@@ -392,7 +438,8 @@ final class BrowserViewModel: ObservableObject {
         let after = allAfterReload.filter {
             CookieDomainMatcher.isRelated(cookieDomain: $0.domain, toHost: pending.host)
         }
-        let success = pending.beforeCount > 0 && pending.deletionConfirmed && !after.isEmpty
+        let success = pending.deletionConfirmed && !after.isEmpty &&
+            (pending.beforeCount > 0 || pending.identityRefresh)
         logCookieRefresh(host: pending.host,
                          before: pending.beforeCount,
                          deleted: pending.deletedCount,
@@ -402,6 +449,9 @@ final class BrowserViewModel: ObservableObject {
                   kind: success ? .success : .failure)
         pendingCookieRefresh = nil
         isCookieRefreshing = false
+        if pending.identityRefresh {
+            finishIdentityRefresh()
+        }
     }
 
     private func failPendingCookieRefresh(result: String) {
@@ -414,6 +464,9 @@ final class BrowserViewModel: ObservableObject {
         showToast("Cookie再取得失敗", kind: .failure)
         pendingCookieRefresh = nil
         isCookieRefreshing = false
+        if pending.identityRefresh {
+            finishIdentityRefresh()
+        }
     }
 
     private func logCookieRefresh(host: String,
@@ -458,14 +511,16 @@ final class BrowserViewModel: ObservableObject {
         let delays: [UInt64] = [1_500_000_000, 2_000_000_000, 3_000_000_000, 4_000_000_000]
         for delay in delays {
             try? await Task.sleep(nanoseconds: delay)
-            if let value = try? await ipService.fetchIPv4() {
+            if let value = try? await ipService.fetchIPv4(userAgent: currentUserAgent.value) {
                 return value
             }
         }
         return nil
     }
 
-    private func completeAP(before: String?, after: String?) {
+    private func completeAP(before: String?,
+                            after: String?,
+                            reloadAfterCompletion: Bool) {
         let result: String
         if let before, let after {
             if before == after {
@@ -487,9 +542,19 @@ final class BrowserViewModel: ObservableObject {
         ])
         pendingAP = nil
         isAPRunning = false
+
+        if reloadAfterCompletion {
+            guard webView?.reload() != nil else {
+                failPendingCookieRefresh(result: "RELOAD_NOT_STARTED")
+                return
+            }
+            return
+        }
     }
 
-    private func finishAPFailure(status: String, before: String?) {
+    private func finishAPFailure(status: String,
+                                 before: String?,
+                                 reloadAfterCompletion: Bool) {
         showToast("IP確認失敗", kind: .warning)
         logStore.append(action: "Cellular Reconnect", fields: [
             ("IP_BEFORE", before ?? "UNAVAILABLE"),
@@ -499,6 +564,14 @@ final class BrowserViewModel: ObservableObject {
         ])
         pendingAP = nil
         isAPRunning = false
+        if reloadAfterCompletion {
+            failPendingCookieRefresh(result: "AP_\(status)")
+        }
+    }
+
+    private func finishIdentityRefresh() {
+        isIdentityRefreshInProgress = false
+        isUAChanging = false
     }
 }
 

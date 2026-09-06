@@ -20,6 +20,8 @@ final class ThreadListViewModel: ObservableObject {
     private let service: ThreadListService
     private let defaults: UserDefaults
     private var isSceneActive = true
+    private var isNetworkActivityAllowed = true
+    private var userAgent = BrowserUserAgent.all[0].value
     private var hasStarted = false
     private var loadTask: Task<Void, Never>?
     private var refreshLoopTask: Task<Void, Never>?
@@ -61,6 +63,23 @@ final class ThreadListViewModel: ObservableObject {
         updateRefreshLoop()
     }
 
+    func setNetworkActivityAllowed(_ allowed: Bool) {
+        guard isNetworkActivityAllowed != allowed else { return }
+        isNetworkActivityAllowed = allowed
+        if !allowed {
+            loadTask?.cancel()
+            loadTask = nil
+            isRefreshing = false
+        } else if hasStarted, isExpanded {
+            refresh()
+        }
+        updateRefreshLoop()
+    }
+
+    func setUserAgent(_ value: String) {
+        userAgent = value
+    }
+
     func toggleExpanded() {
         isExpanded.toggle()
         defaults.set(isExpanded, forKey: Keys.expanded)
@@ -81,7 +100,7 @@ final class ThreadListViewModel: ObservableObject {
     }
 
     func refresh() {
-        guard isExpanded, isSceneActive else { return }
+        guard isExpanded, isSceneActive, isNetworkActivityAllowed else { return }
         loadTask?.cancel()
         let sort = selectedSort
         isRefreshing = true
@@ -90,10 +109,11 @@ final class ThreadListViewModel: ObservableObject {
         loadTask = Task { [weak self] in
             guard let self else { return }
             do {
+                await service.updateUserAgent(userAgent)
                 let loaded = try await service.fetchList(sort: sort,
                                                             limit: Self.listItemLimit)
                 try Task.checkCancellation()
-                guard selectedSort == sort else { return }
+                guard selectedSort == sort, isNetworkActivityAllowed else { return }
                 items = Self.mergingDisplayState(of: loaded, with: items)
                 isRefreshing = false
                 await loadThumbnails(for: loaded, sort: sort)
@@ -216,7 +236,7 @@ final class ThreadListViewModel: ObservableObject {
     private func updateRefreshLoop() {
         refreshLoopTask?.cancel()
         refreshLoopTask = nil
-        guard hasStarted, isExpanded, isSceneActive else { return }
+        guard hasStarted, isExpanded, isSceneActive, isNetworkActivityAllowed else { return }
 
         refreshLoopTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -225,7 +245,8 @@ final class ThreadListViewModel: ObservableObject {
                 } catch {
                     return
                 }
-                guard let self, self.isExpanded, self.isSceneActive else { return }
+                guard let self, self.isExpanded, self.isSceneActive,
+                      self.isNetworkActivityAllowed else { return }
                 self.refresh()
             }
         }

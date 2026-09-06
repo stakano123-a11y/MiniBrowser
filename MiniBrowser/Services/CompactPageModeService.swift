@@ -145,15 +145,38 @@ enum CompactPageModeService {
             width: 100% !important;
             margin: -3px 0 2px !important;
           }
-          #minibrowser-targetpage-draft-toggle {
-            min-width: 62px !important;
+          #minibrowser-targetpage-comment-actions > input[type="submit"],
+          #minibrowser-targetpage-comment-actions > button {
+            flex: 0 0 68px !important;
+            width: 68px !important;
+            min-width: 68px !important;
             min-height: 26px !important;
+            box-sizing: border-box !important;
+          }
+          #minibrowser-targetpage-draft-toggle {
             padding: 2px 6px !important;
             border: 1px solid #888 !important;
             border-radius: 5px !important;
             background: #eee !important;
             color: #333 !important;
             font-size: 12px !important;
+          }
+          #minibrowser-targetpage-submit-status {
+            flex: 0 0 3.2em !important;
+            width: 3.2em !important;
+            min-width: 3.2em !important;
+            color: #555 !important;
+            font-size: 12px !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+          }
+          #minibrowser-targetpage-form-placement {
+            flex-basis: 52px !important;
+            width: 52px !important;
+            min-width: 52px !important;
+          }
+          #minibrowser-targetpage-compose.minibrowser-form-at-bottom {
+            grid-template-columns: minmax(88px, 30vw) !important;
           }
           #minibrowser-targetpage-draft-toggle[data-enabled="true"] {
             border-color: #087be6 !important;
@@ -296,12 +319,58 @@ enum CompactPageModeService {
       }
       if (actions && submitButton) actions.appendChild(submitButton);
 
+      const submitStatusID = "minibrowser-targetpage-submit-status";
+      const submitStatus = (() => {
+        const existing = doc.getElementById(submitStatusID);
+        if (existing) return existing;
+        if (!actions) return null;
+        const element = doc.createElement("span");
+        element.id = submitStatusID;
+        element.setAttribute("aria-live", "polite");
+        actions.appendChild(element);
+        return element;
+      })();
+      let submitStatusTimer = null;
+
+      function setSubmitStatus(value) {
+        if (submitStatus) submitStatus.textContent = value;
+        if (submitStatusTimer !== null) clearTimeout(submitStatusTimer);
+        if (value) {
+          submitStatusTimer = setTimeout(() => {
+            if (submitStatus) submitStatus.textContent = "";
+          }, 3000);
+        }
+      }
+
       let draftToggle = doc.getElementById("minibrowser-targetpage-draft-toggle");
       if (!draftToggle && actions) {
         draftToggle = doc.createElement("button");
         draftToggle.type = "button";
         draftToggle.id = "minibrowser-targetpage-draft-toggle";
         actions.appendChild(draftToggle);
+      }
+
+      const formPlacementKey = "MiniBrowser.TargetPageFormPlacement";
+      const placementToggleID = "minibrowser-targetpage-form-placement";
+      const placementToggle = (() => {
+        const existing = doc.getElementById(placementToggleID);
+        if (existing) return existing;
+        if (!actions) return null;
+        const button = doc.createElement("button");
+        button.type = "button";
+        button.id = placementToggleID;
+        actions.appendChild(button);
+        return button;
+      })();
+      let formPlacement = "top";
+      try {
+        formPlacement = localStorage.getItem(formPlacementKey) === "bottom" ? "bottom" : "top";
+      } catch (_) {}
+
+      function updatePlacementToggle() {
+        if (!placementToggle) return;
+        placementToggle.textContent = formPlacement === "bottom" ? "上へ" : "下へ";
+        placementToggle.setAttribute("aria-pressed", formPlacement === "bottom" ? "true" : "false");
       }
 
       function updateDraftToggle() {
@@ -328,12 +397,31 @@ enum CompactPageModeService {
       }
 
       let submittedDraft = null;
+      let submittedDraftRestoreTimer = null;
+
+      function restoreSubmittedDraft() {
+        if (!draftEnabled || !textarea || submittedDraft === null || textarea.value !== "") return;
+        textarea.value = submittedDraft;
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        textarea.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      function scheduleSubmittedDraftRestore() {
+        if (submittedDraftRestoreTimer !== null) {
+          clearTimeout(submittedDraftRestoreTimer);
+        }
+        submittedDraftRestoreTimer = setTimeout(() => {
+          submittedDraftRestoreTimer = null;
+          restoreSubmittedDraft();
+        }, 0);
+      }
       if (textarea && !textarea.dataset.minibrowserDraftTracking) {
         textarea.dataset.minibrowserDraftTracking = "true";
         textarea.addEventListener("input", () => {
           if (!draftEnabled) return;
           if (submittedDraft !== null && textarea.value === "") {
             try { localStorage.setItem(draftTextKey, submittedDraft); } catch (_) {}
+            scheduleSubmittedDraftRestore();
             return;
           }
           submittedDraft = null;
@@ -361,16 +449,25 @@ enum CompactPageModeService {
         }, true);
       }
       updateDraftToggle();
+      updatePlacementToggle();
 
       form.addEventListener("submit", () => {
+        setSubmitStatus("送信中");
         if (!draftEnabled || !textarea) return;
         submittedDraft = textarea.value;
         saveDraft();
+        scheduleSubmittedDraftRestore();
       }, true);
+
+      if (submitButton && !submitButton.dataset.minibrowserSubmitStatus) {
+        submitButton.dataset.minibrowserSubmitStatus = "true";
+        submitButton.addEventListener("click", () => setSubmitStatus("送信中"), true);
+      }
 
       const formObserver = new MutationObserver(() => {
         clearEmail();
         disableFormPositionToggle();
+        restoreSubmittedDraft();
       });
       formObserver.observe(form, { childList: true, subtree: true, attributes: true });
 
@@ -548,6 +645,35 @@ enum CompactPageModeService {
         infos.forEach(info => {
           info.table.classList.toggle("minibrowser-own-response", own.has(info.number));
         });
+        applyFormPlacement();
+      }
+
+      function applyFormPlacement() {
+        if (!compose) return;
+        const latestOwnResponse = responseInfos()
+          .filter(info => info.table.classList.contains("minibrowser-own-response"))
+          .sort((left, right) => left.numericNumber - right.numericNumber)
+          .pop();
+
+        if (formPlacement === "bottom" && latestOwnResponse) {
+          compose.classList.add("minibrowser-form-at-bottom");
+          if (form.parentElement !== thread || form.previousElementSibling !== latestOwnResponse.table) {
+            latestOwnResponse.table.after(form);
+          }
+        } else {
+          compose.classList.remove("minibrowser-form-at-bottom");
+          if (form.parentElement !== compose) compose.appendChild(form);
+        }
+        updatePlacementToggle();
+      }
+
+      if (placementToggle && !placementToggle.dataset.minibrowserBound) {
+        placementToggle.dataset.minibrowserBound = "true";
+        placementToggle.addEventListener("click", () => {
+          formPlacement = formPlacement === "bottom" ? "top" : "bottom";
+          try { localStorage.setItem(formPlacementKey, formPlacement); } catch (_) {}
+          applyFormPlacement();
+        }, true);
       }
 
       if (!form.dataset.minibrowserOwnPostTracking) {

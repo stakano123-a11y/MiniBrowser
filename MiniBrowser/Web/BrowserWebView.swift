@@ -71,7 +71,7 @@ struct BrowserWebView: UIViewRepresentable {
             guard message.name == CanvasImageSessionService.messageHandlerName,
                   message.frameInfo.isMainFrame,
                   CanvasImageSessionService.isTargetPageThreadURL(
-                    attachedWebView?.url ?? message.frameInfo.request.url
+                    message.frameInfo.request.url ?? attachedWebView?.url
                   ),
                   let body = message.body as? [String: Any],
                   let type = body["type"] as? String else {
@@ -82,6 +82,10 @@ struct BrowserWebView: UIViewRepresentable {
             case "selectedImage":
                 guard let dataURL = body["dataURL"] as? String else { return }
                 _ = handwritingImageStore.replace(withDataURL: dataURL)
+
+            case "pageReady":
+                guard handwritingImageStore.hasImage else { return }
+                attachedWebView?.evaluateJavaScript(CanvasImageSessionService.openExistingCanvasScript)
 
             case "canvasReady":
                 guard let script = handwritingImageStore.restorationScript() else { return }

@@ -19,10 +19,10 @@ struct IPAddressService {
         self.timeout = timeout
     }
 
-    func fetchIPv4() async throws -> String {
-        var request = URLRequest(url: endpoint)
-        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        request.timeoutInterval = timeout
+    func fetchIPv4(userAgent: String? = nil) async throws -> String {
+        let request = Self.makeRequest(endpoint: endpoint,
+                                       timeout: timeout,
+                                       userAgent: userAgent)
 
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = timeout
@@ -51,5 +51,16 @@ struct IPAddressService {
             return part == "0" || !part.hasPrefix("0")
         }
     }
-}
 
+    static func makeRequest(endpoint: URL,
+                            timeout: TimeInterval,
+                            userAgent: String?) -> URLRequest {
+        var request = URLRequest(url: endpoint)
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        request.timeoutInterval = timeout
+        if let userAgent, !userAgent.isEmpty {
+            request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        }
+        return request
+    }
+}

@@ -50,6 +50,15 @@ enum CanvasImageSessionService {
       const observer = new MutationObserver(notifyCanvasReady);
       observer.observe(document.documentElement, { childList: true, subtree: true });
       notifyCanvasReady();
+
+      function notifyPageReady() {
+        handler.postMessage({ type: "pageReady" });
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", notifyPageReady, { once: true });
+      } else {
+        notifyPageReady();
+      }
     })();
     """#
 
@@ -67,6 +76,31 @@ enum CanvasImageSessionService {
         return url.path.range(of: #"^/[^/]+/res/\d+\.htm$"#,
                               options: .regularExpression) != nil
     }
+
+    static let openExistingCanvasScript = #"""
+    (() => {
+      "use strict";
+      if (document.querySelector("canvas#oejs, input#itgkfile")) return;
+      let clicked = false;
+      let attempts = 0;
+      const openExistingField = () => {
+        if (document.querySelector("canvas#oejs, input#itgkfile")) return;
+        attempts += 1;
+        if (!clicked) {
+          const trigger = Array.from(document.querySelectorAll("a, button, input[type='button'], input[type='submit']"))
+            .find(element => /手書きjs/.test(String(element.value || element.textContent || "").replace(/\s+/g, "")));
+          if (trigger instanceof HTMLElement) {
+            clicked = true;
+            trigger.click();
+          }
+        }
+        if (attempts < 15 && !document.querySelector("canvas#oejs, input#itgkfile")) {
+          setTimeout(openExistingField, 120);
+        }
+      };
+      openExistingField();
+    })();
+    """#
 }
 
 final class TargetPageHandwritingImageStore {

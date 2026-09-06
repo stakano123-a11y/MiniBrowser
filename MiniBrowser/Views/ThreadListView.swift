@@ -87,29 +87,38 @@ private struct ThreadListCell: View {
     let openCount: Int
 
     var body: some View {
+        let hasBeenOpened = openCount > 0
         HStack(spacing: 5) {
             ThreadListThumbnail(item: item)
 
             Text(item.openerText ?? "本文取得中…")
                 .font(.caption2)
-                .foregroundStyle(.primary)
+                .foregroundStyle(hasBeenOpened ? Color.white : Color.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            if openCount > 0 {
-                Text("\(openCount)回")
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("返信 \(item.replyCount)")
                     .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: true, vertical: false)
+                if hasBeenOpened {
+                    Text("\(openCount)回")
+                        .font(.caption2.monospacedDigit())
+                }
             }
+            .foregroundStyle(hasBeenOpened ? Color.white.opacity(0.9) : Color.secondary)
+            .fixedSize(horizontal: true, vertical: false)
         }
         .padding(.horizontal, 4)
         .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-        .background(openCount > 0
-                    ? Color.blue.opacity(0.18)
+        .background(hasBeenOpened
+                    ? Color(red: 0.03, green: 0.28, blue: 0.62)
                     : Color(uiColor: .secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay {
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(hasBeenOpened ? Color.cyan.opacity(0.9) : Color.clear, lineWidth: 1)
+        }
     }
 }
 

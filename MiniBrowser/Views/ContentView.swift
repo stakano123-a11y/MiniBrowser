@@ -27,10 +27,15 @@ struct ContentView: View {
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .task {
+            listModel.setUserAgent(model.currentUserAgent.value)
             listModel.start()
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
             listModel.setSceneActive(phase == .active)
+        }
+        .onChange(of: model.isIdentityRefreshInProgress) { _, isInProgress in
+            listModel.setUserAgent(model.currentUserAgent.value)
+            listModel.setNetworkActivityAllowed(!isInProgress)
         }
         .sheet(isPresented: $showingBookmarks) {
             BookmarkListView(store: model.bookmarkStore,
@@ -99,7 +104,8 @@ struct ContentView: View {
                               action: model.reload)
                 toolbarTextButton(model.userAgentButtonTitle,
                                   width: buttonWidth,
-                                  enabled: !model.isUAChanging,
+                                  enabled: !model.isUAChanging && !model.isLoading &&
+                                      !model.isIdentityRefreshInProgress,
                                   action: model.cycleUserAgent)
                 toolbarTextButton("Cookie",
                                   width: buttonWidth,
@@ -107,7 +113,7 @@ struct ContentView: View {
                                   action: model.refreshCookies)
                 toolbarTextButton("AP",
                                   width: buttonWidth,
-                                  enabled: !model.isAPRunning,
+                                  enabled: !model.isAPRunning && !model.isIdentityRefreshInProgress,
                                   action: model.startCellularReconnect)
             }
         }

@@ -35,6 +35,10 @@ final class CompactPageModeServiceTests: XCTestCase {
         XCTAssertTrue(script.contains("minibrowser-targetpage-comment-actions"))
         XCTAssertTrue(script.contains("modeHeader.classList.add(\"minibrowser-targetpage-page-extra\")"))
         XCTAssertTrue(script.contains("form.insertBefore(actions, formTable || form.firstChild)"))
+        XCTAssertTrue(script.contains("minibrowser-targetpage-submit-status"))
+        XCTAssertTrue(script.contains("setSubmitStatus(\"送信中\")"))
+        XCTAssertTrue(script.contains("MiniBrowser.TargetPageFormPlacement"))
+        XCTAssertTrue(script.contains("latestOwnResponse.table.after(form)"))
     }
 
     func testScriptIncludesGlobalDraftRetentionControls() {
@@ -45,5 +49,6 @@ final class CompactPageModeServiceTests: XCTestCase {
         XCTAssertTrue(script.contains("保持 OFF"))
         XCTAssertTrue(script.contains("localStorage.removeItem(draftTextKey)"))
         XCTAssertTrue(script.contains("submittedDraft = textarea.value"))
+        XCTAssertTrue(script.contains("restoreSubmittedDraft"))
     }
 }

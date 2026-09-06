@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import MiniBrowser
 
@@ -9,5 +10,15 @@ final class IPAddressServiceTests: XCTestCase {
         XCTAssertFalse(IPAddressService.isIPv4("2001:db8::1"))
         XCTAssertFalse(IPAddressService.isIPv4("01.2.3.4"))
     }
-}
 
+    func testRequestUsesProvidedUserAgent() {
+        let userAgent = BrowserUserAgent.all[5].value
+        let request = IPAddressService.makeRequest(
+            endpoint: URL(string: "https://example.com/ip")!,
+            timeout: 8,
+            userAgent: userAgent
+        )
+        XCTAssertEqual(request.value(forHTTPHeaderField: "User-Agent"), userAgent)
+        XCTAssertEqual(request.cachePolicy, .reloadIgnoringLocalAndRemoteCacheData)
+    }
+}

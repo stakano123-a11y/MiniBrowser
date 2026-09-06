@@ -1,6 +1,6 @@
 import Foundation
 
-struct BrowserUserAgent: Identifiable, Equatable {
+struct BrowserUserAgent: Identifiable, Equatable, Sendable {
     let id: Int
     let name: String
     let value: String

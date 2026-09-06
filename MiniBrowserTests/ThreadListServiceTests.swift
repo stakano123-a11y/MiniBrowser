@@ -111,6 +111,22 @@ final class ThreadListServiceTests: XCTestCase {
         XCTAssertEqual(request.timeoutInterval, 6)
     }
 
+    func testNativeRequestsUseTheSelectedUserAgent() {
+        let userAgent = BrowserUserAgent.all[3].value
+        let url = URL(string: "https://img.2chan.net/b/res/123.htm")!
+        let list = ThreadListService.makeListRequest(for: ThreadListSort.momentum.url,
+                                                      userAgent: userAgent)
+        let opener = ThreadListService.makeOpenerRequest(for: url, userAgent: userAgent)
+        let thumbnail = ThreadListService.makeThumbnailRequest(
+            for: URL(string: "https://img.2chan.net/b/cat/123s.jpg")!,
+            referer: ThreadListSort.momentum.url,
+            userAgent: userAgent
+        )
+        XCTAssertEqual(list.value(forHTTPHeaderField: "User-Agent"), userAgent)
+        XCTAssertEqual(opener.value(forHTTPHeaderField: "User-Agent"), userAgent)
+        XCTAssertEqual(thumbnail.value(forHTTPHeaderField: "User-Agent"), userAgent)
+    }
+
     func testShiftJISDecoder() throws {
         let original = "対象ページ"
         let data = try XCTUnwrap(original.data(using: .shiftJIS))

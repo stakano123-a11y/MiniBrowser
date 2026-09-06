@@ -13,14 +13,14 @@ MiniBrowser is a lightweight iPhone browser built with SwiftUI and `WKWebView`. 
 ## MVP features
 
 - URL-only navigation, current URL tracking, last URL restoration, back/forward/reload, and a 30-second timeout
-- Ten persistent iOS/iPadOS-style User-Agent profiles
+- Ten persistent iOS/iPadOS-style User-Agent profiles; a user-initiated UA change refreshes only the current host's related cookies, launches the AP shortcut, returns automatically, then reloads for cookie verification
 - Current-host and parent-domain Cookie deletion followed by reload and verified reacquisition
-- `セルラー再接続` through Apple's Shortcuts x-callback URL, automatic return, and public IPv4 comparison without reloading the page
+- `セルラー再接続` through Apple's Shortcuts x-callback URL, automatic return, and public IPv4 comparison without reloading the page when started manually
 - Local bookmarks and unlimited-length multiline bookmarklets with edit/delete/drag reorder and exact-domain automatic execution
 - Conservative always-on `WKContentRuleList` ad/tracker blocking
 - A focused `configured target host` thread layout that keeps the reply form, a four-line opener summary with its image, and locally tracked own replies while hiding surrounding site chrome
 - While MiniBrowser remains launched, an image selected through the existing TargetPage handwriting bookmarklet is held only in memory and redrawn after a supported thread reload/navigation with one random pixel added; it is never written to browser storage or logs
-- A collapsible native two-column official TargetPage list with momentum/list/reply-count sorting, up to 60 active threads, and thumbnail retry on refresh
+- A collapsible native two-column official TargetPage list with momentum/list/reply-count sorting, up to 60 active threads, thumbnail retry on refresh, reply counts, and high-contrast visited state
 - Input-focus auto zoom prevention for small form fields while preserving manual pinch zoom
 - A 500-entry redacted debug log; long-press the bottom toolbar and choose `ログをコピー` to copy the latest 50 entries
 - Reusable GitHub Actions unsigned IPA build and Windows/iCloud Drive delivery
@@ -49,7 +49,7 @@ Windows cannot compile this iOS target. The authoritative compile/test check is 
 ## Implementation notes
 
 - Cookie matching accepts an exact host or a cookie parent domain only; it does not clear unrelated WebKit data or LocalStorage.
-- AP callback uses `shortcuts://x-callback-url/run-shortcut` with success/cancel/error callbacks to `minibrowser://return`. Returning never reloads the page.
+- AP callback uses `shortcuts://x-callback-url/run-shortcut` with success/cancel/error callbacks to `minibrowser://return`. A manually started AP reconnect never reloads the page; the UA-change privacy flow intentionally reloads only after the callback so it can reacquire the current host's cookies.
 - Public IPv4 comes from the replaceable `IPAddressService` endpoint (`https://api.ipify.org?format=json`) with an 8-second request timeout.
 - Browser-family UA tokens are representative hardcoded profiles. iOS 26 freezes the OS portion at the final iOS 18 value for compatibility; changing a UA does not change the underlying WebKit engine.
 - Automatic bookmarklets run only when the configured domain exactly matches the current host. Their stored source is unchanged; execution forces a bridgeable Boolean completion value.

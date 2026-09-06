@@ -9,17 +9,22 @@ enum ThreadListError: Error {
 
 actor ThreadListService {
     private let session: URLSession
+    private var userAgent: String
     private var openerCache: [String: String] = [:]
     private var thumbnailCache: [URL: Data] = [:]
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(session: URLSession? = nil,
+         userAgent: String = BrowserUserAgent.all[0].value) {
+        self.session = session ?? URLSession(configuration: .ephemeral)
+        self.userAgent = userAgent
+    }
+
+    func updateUserAgent(_ value: String) {
+        userAgent = value
     }
 
     func fetchList(sort: ThreadListSort, limit: Int = 60) async throws -> [ThreadListItem] {
-        var request = URLRequest(url: sort.url)
-        request.timeoutInterval = 15
-        request.cachePolicy = .reloadIgnoringLocalCacheData
+        let request = Self.makeListRequest(for: sort.url, userAgent: userAgent)
 
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse,
@@ -41,7 +46,7 @@ actor ThreadListService {
             return cached
         }
 
-        let request = Self.makeOpenerRequest(for: item.threadURL)
+        let request = Self.makeOpenerRequest(for: item.threadURL, userAgent: userAgent)
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse,
               http.statusCode == 200 || http.statusCode == 206 else {
@@ -67,7 +72,8 @@ actor ThreadListService {
         for attempt in 0..<2 {
             do {
                 let request = Self.makeThumbnailRequest(for: item.thumbnailURL,
-                                                        referer: referer)
+                                                        referer: referer,
+                                                        userAgent: userAgent)
                 let (data, response) = try await session.data(for: request)
                 guard let http = response as? HTTPURLResponse,
                       http.statusCode == 200,
@@ -90,16 +96,28 @@ actor ThreadListService {
         throw lastError
     }
 
-    nonisolated static func makeOpenerRequest(for url: URL) -> URLRequest {
+    nonisolated static func makeListRequest(for url: URL,
+                                            userAgent: String = BrowserUserAgent.all[0].value) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 15
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        return request
+    }
+
+    nonisolated static func makeOpenerRequest(for url: URL,
+                                              userAgent: String = BrowserUserAgent.all[0].value) -> URLRequest {
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
         request.setValue("bytes=0-32767", forHTTPHeaderField: "Range")
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         return request
     }
 
     nonisolated static func makeThumbnailRequest(for url: URL,
-                                                 referer: URL) -> URLRequest {
+                                                 referer: URL,
+                                                 userAgent: String = BrowserUserAgent.all[0].value) -> URLRequest {
         var request = URLRequest(url: url)
         // List thumbnails are only 32 px in the UI. A shorter deadline keeps a
         // stalled image from holding up every later cell until the next refresh.
@@ -108,11 +126,7 @@ actor ThreadListService {
         request.setValue(referer.absoluteString, forHTTPHeaderField: "Referer")
         request.setValue("image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
                          forHTTPHeaderField: "Accept")
-        request.setValue(
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) " +
-            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1",
-            forHTTPHeaderField: "User-Agent"
-        )
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         return request
     }
 

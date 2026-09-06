@@ -20,6 +20,7 @@ final class CanvasImageSessionServiceTests: XCTestCase {
         XCTAssertTrue(script.contains("canvas#oejs"))
         XCTAssertTrue(script.contains("selectedImage"))
         XCTAssertTrue(script.contains("canvasReady"))
+        XCTAssertTrue(script.contains("pageReady"))
         XCTAssertFalse(script.contains("localStorage"))
         XCTAssertFalse(script.contains("sessionStorage"))
 
@@ -28,6 +29,8 @@ final class CanvasImageSessionServiceTests: XCTestCase {
         let restoration = try XCTUnwrap(store.restorationScript())
         XCTAssertTrue(restoration.contains("context.fillRect(x, y, 1, 1)"))
         XCTAssertTrue(restoration.contains("canvas#oejs"))
+        XCTAssertTrue(CanvasImageSessionService.openExistingCanvasScript.contains("手書きjs"))
+        XCTAssertTrue(CanvasImageSessionService.openExistingCanvasScript.contains("trigger.click()"))
     }
 
     func testStoreRejectsUnsupportedAndCreatesNoCrossLaunchState() {
