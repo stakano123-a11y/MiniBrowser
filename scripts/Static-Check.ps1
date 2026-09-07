@@ -35,6 +35,7 @@ $listViewModelFile = Join-Path $projectRoot 'MiniBrowser\ViewModels\ThreadListVi
 $infoFile = Join-Path $projectRoot 'MiniBrowser\Info.plist'
 $workflowFile = Join-Path $projectRoot '.github\workflows\reusable-ios-unsigned-build-deliver.yml'
 $deliveryScriptFile = Join-Path $projectRoot 'scripts\Deliver-Ipa.ps1'
+$javaScriptValidationFile = Join-Path $projectRoot 'scripts\Validate-InjectedJavaScript.mjs'
 $specFile = Join-Path $projectRoot 'MiniBrowser_Codex_Spec.md'
 $agentsFile = Join-Path $projectRoot 'AGENTS.md'
 
@@ -51,10 +52,14 @@ Assert-NotContains $focusModeFile 'fixedDeleteKey' 'no forced TargetPage deletio
 Assert-NotContains $focusModeFile 'deleteInput\.readOnly\s*=\s*true' 'editable TargetPage deletion key'
 Assert-Contains $focusModeFile 'textarea\.rows\s*=\s*2' 'compact TargetPage comment field'
 Assert-Contains $focusModeFile 'disableFormPositionToggle' 'disabled TargetPage form position switch'
-Assert-Contains $focusModeFile 'MiniBrowser\.TargetPageFormPlacement' 'MiniBrowser form placement setting'
-Assert-Contains $focusModeFile 'latestOwnResponse\.table\.after\(form\)' 'bottom placement after latest own response'
-Assert-Contains $focusModeFile 'minibrowser-targetpage-submit-status' 'fixed TargetPage submit status slot'
-Assert-Contains $focusModeFile 'restoreSubmittedDraft' 'same-page TargetPage draft restoration'
+Assert-Contains $focusModeFile 'localStorage\.removeItem\("MiniBrowser\.TargetPageFormPlacement"\)' 'cleared legacy TargetPage form placement setting'
+Assert-NotContains $focusModeFile 'minibrowser-targetpage-form-placement' 'no MiniBrowser form placement control'
+Assert-NotContains $focusModeFile 'latestOwnResponse\.table\.after\(form\)' 'no bottom placement after own response'
+Assert-NotContains $focusModeFile 'minibrowser-targetpage-submit-status' 'no MiniBrowser submit status slot'
+Assert-Contains $focusModeFile '#retmestip' 'hidden TargetPage submit status'
+Assert-Contains $focusModeFile 'capturePostState' 'TargetPage draft capture on posting'
+Assert-Contains $focusModeFile 'postCompleted' 'TargetPage post completion handwriting bridge'
+Assert-Contains $focusModeFile 'initializeCompactPage' 'retryable TargetPage compact-page initialization'
 Assert-Contains $listServiceFile 'bytes=0-32767' 'bounded TargetPage opener request'
 Assert-Contains $listServiceFile 'limit:\s*Int\s*=\s*60' 'sixty-item TargetPage list limit'
 Assert-Contains $listServiceFile 'replyCount\s*<\s*1_000' 'completed TargetPage thread exclusion'
@@ -74,6 +79,7 @@ Assert-Contains $handwritingServiceFile 'input\.id !== "itgkfile"' 'existing han
 Assert-Contains $handwritingServiceFile 'canvas#oejs' 'existing handwriting canvas-only restoration'
 Assert-Contains $handwritingServiceFile 'pageReady' 'TargetPage handwriting page-ready signal'
 Assert-Contains $handwritingServiceFile 'openExistingCanvasScript' 'existing handwriting control opener'
+Assert-Contains $webViewFile 'case "postCompleted"' 'TargetPage post-completion handwriting receiver'
 Assert-Contains $handwritingServiceFile 'context\.fillRect\(x, y, 1, 1\)' 'single-pixel handwriting image variation'
 Assert-Contains $handwritingServiceFile 'maximumImageDataByteCount = 3_000_000' 'bounded in-memory handwriting image size'
 Assert-Contains $projectFile 'ASSETCATALOG_COMPILER_APPICON_NAME:\s*AppIcon' 'AppIcon asset compiler setting'
@@ -93,6 +99,15 @@ Assert-Contains $deliveryScriptFile 'MINIBROWSER_DELIVERY_DIRECTORY' 'runner-loc
 Assert-Contains $specFile '# MiniBrowser 実装仕様書' 'canonical product specification'
 Assert-Contains $agentsFile 'quietarc-lab/MiniBrowser' 'canonical repository rule'
 Assert-Contains $agentsFile 'GitHub Issues' 'issue handoff rule'
+
+$node = Get-Command node -ErrorAction SilentlyContinue
+if (-not $node) {
+    throw 'Node.js is required to validate injected JavaScript.'
+}
+& $node.Source $javaScriptValidationFile $projectRoot
+if ($LASTEXITCODE -ne 0) {
+    throw 'Injected JavaScript syntax validation failed.'
+}
 
 $uaText = Get-Content -LiteralPath $uaFile -Raw -Encoding UTF8
 $uaCount = ([regex]::Matches($uaText, '\.init\(id:\s*\d+')).Count

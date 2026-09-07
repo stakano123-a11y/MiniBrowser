@@ -11,11 +11,15 @@ enum CompactPageModeService {
       }
 
       const doc = document;
-      const thread = doc.querySelector("div.thre");
-      const form = Array.from(doc.forms).find(candidate =>
-        candidate.querySelector('textarea[name="com"]')
-      );
-      if (!thread || !form) return;
+
+      function initializeCompactPage() {
+        const thread = doc.querySelector("div.thre");
+        const form = Array.from(doc.forms).find(candidate =>
+          candidate.querySelector('textarea[name="com"]')
+        );
+        if (!thread || !form) return false;
+        if (form.dataset.minibrowserCompactInitialized === "true") return true;
+        form.dataset.minibrowserCompactInitialized = "true";
 
       let viewport = doc.querySelector('meta[name="viewport"]');
       if (!viewport) {
@@ -161,22 +165,8 @@ enum CompactPageModeService {
             color: #333 !important;
             font-size: 12px !important;
           }
-          #minibrowser-targetpage-submit-status {
-            flex: 0 0 3.2em !important;
-            width: 3.2em !important;
-            min-width: 3.2em !important;
-            color: #555 !important;
-            font-size: 12px !important;
-            text-align: center !important;
-            white-space: nowrap !important;
-          }
-          #minibrowser-targetpage-form-placement {
-            flex-basis: 52px !important;
-            width: 52px !important;
-            min-width: 52px !important;
-          }
-          #minibrowser-targetpage-compose.minibrowser-form-at-bottom {
-            grid-template-columns: minmax(88px, 30vw) !important;
+          #retmestip {
+            display: none !important;
           }
           #minibrowser-targetpage-draft-toggle[data-enabled="true"] {
             border-color: #087be6 !important;
@@ -319,29 +309,6 @@ enum CompactPageModeService {
       }
       if (actions && submitButton) actions.appendChild(submitButton);
 
-      const submitStatusID = "minibrowser-targetpage-submit-status";
-      const submitStatus = (() => {
-        const existing = doc.getElementById(submitStatusID);
-        if (existing) return existing;
-        if (!actions) return null;
-        const element = doc.createElement("span");
-        element.id = submitStatusID;
-        element.setAttribute("aria-live", "polite");
-        actions.appendChild(element);
-        return element;
-      })();
-      let submitStatusTimer = null;
-
-      function setSubmitStatus(value) {
-        if (submitStatus) submitStatus.textContent = value;
-        if (submitStatusTimer !== null) clearTimeout(submitStatusTimer);
-        if (value) {
-          submitStatusTimer = setTimeout(() => {
-            if (submitStatus) submitStatus.textContent = "";
-          }, 3000);
-        }
-      }
-
       let draftToggle = doc.getElementById("minibrowser-targetpage-draft-toggle");
       if (!draftToggle && actions) {
         draftToggle = doc.createElement("button");
@@ -350,28 +317,7 @@ enum CompactPageModeService {
         actions.appendChild(draftToggle);
       }
 
-      const formPlacementKey = "MiniBrowser.TargetPageFormPlacement";
-      const placementToggleID = "minibrowser-targetpage-form-placement";
-      const placementToggle = (() => {
-        const existing = doc.getElementById(placementToggleID);
-        if (existing) return existing;
-        if (!actions) return null;
-        const button = doc.createElement("button");
-        button.type = "button";
-        button.id = placementToggleID;
-        actions.appendChild(button);
-        return button;
-      })();
-      let formPlacement = "top";
-      try {
-        formPlacement = localStorage.getItem(formPlacementKey) === "bottom" ? "bottom" : "top";
-      } catch (_) {}
-
-      function updatePlacementToggle() {
-        if (!placementToggle) return;
-        placementToggle.textContent = formPlacement === "bottom" ? "上へ" : "下へ";
-        placementToggle.setAttribute("aria-pressed", formPlacement === "bottom" ? "true" : "false");
-      }
+      try { localStorage.removeItem("MiniBrowser.TargetPageFormPlacement"); } catch (_) {}
 
       function updateDraftToggle() {
         if (!draftToggle) return;
@@ -397,34 +343,61 @@ enum CompactPageModeService {
       }
 
       let submittedDraft = null;
-      let submittedDraftRestoreTimer = null;
+      let submittedDraftRestoreTimers = [];
+      let userEditedAfterSubmission = false;
+      let canvasWasOpenAtSubmission = false;
+      let postCompletionReported = false;
 
       function restoreSubmittedDraft() {
-        if (!draftEnabled || !textarea || submittedDraft === null || textarea.value !== "") return;
+        if (!draftEnabled || !textarea || submittedDraft === null ||
+            userEditedAfterSubmission || textarea.value !== "") return;
         textarea.value = submittedDraft;
-        textarea.dispatchEvent(new Event("input", { bubbles: true }));
-        textarea.dispatchEvent(new Event("change", { bubbles: true }));
       }
 
       function scheduleSubmittedDraftRestore() {
-        if (submittedDraftRestoreTimer !== null) {
-          clearTimeout(submittedDraftRestoreTimer);
+        while (submittedDraftRestoreTimers.length) {
+          clearTimeout(submittedDraftRestoreTimers.pop());
         }
-        submittedDraftRestoreTimer = setTimeout(() => {
-          submittedDraftRestoreTimer = null;
-          restoreSubmittedDraft();
-        }, 0);
+        [0, 250, 1000].forEach(delay => {
+          submittedDraftRestoreTimers.push(setTimeout(restoreSubmittedDraft, delay));
+        });
       }
+
+      function notifyPostCompletion() {
+        if (postCompletionReported) return;
+        const status = doc.getElementById("retmestip");
+        if (!status || String(status.textContent || "").trim() !== "完了") return;
+        postCompletionReported = true;
+        const handler = window.webkit && window.webkit.messageHandlers &&
+          window.webkit.messageHandlers.miniBrowserHandwriting;
+        if (handler) {
+          handler.postMessage({
+            type: "postCompleted",
+            canvasWasOpen: canvasWasOpenAtSubmission
+          });
+        }
+      }
+
+      function capturePostState() {
+        if (!textarea) return;
+        submittedDraft = draftEnabled ? textarea.value : null;
+        userEditedAfterSubmission = false;
+        canvasWasOpenAtSubmission = Boolean(doc.querySelector("canvas#oejs"));
+        postCompletionReported = false;
+        if (draftEnabled) {
+          saveDraft();
+          scheduleSubmittedDraftRestore();
+        }
+      }
+
       if (textarea && !textarea.dataset.minibrowserDraftTracking) {
         textarea.dataset.minibrowserDraftTracking = "true";
-        textarea.addEventListener("input", () => {
+        textarea.addEventListener("input", event => {
           if (!draftEnabled) return;
-          if (submittedDraft !== null && textarea.value === "") {
-            try { localStorage.setItem(draftTextKey, submittedDraft); } catch (_) {}
-            scheduleSubmittedDraftRestore();
-            return;
+          if (event.isTrusted) {
+            userEditedAfterSubmission = true;
+            submittedDraft = null;
           }
-          submittedDraft = null;
           saveDraft();
         }, true);
       }
@@ -449,25 +422,19 @@ enum CompactPageModeService {
         }, true);
       }
       updateDraftToggle();
-      updatePlacementToggle();
 
-      form.addEventListener("submit", () => {
-        setSubmitStatus("送信中");
-        if (!draftEnabled || !textarea) return;
-        submittedDraft = textarea.value;
-        saveDraft();
-        scheduleSubmittedDraftRestore();
-      }, true);
+      form.addEventListener("submit", capturePostState, true);
 
-      if (submitButton && !submitButton.dataset.minibrowserSubmitStatus) {
-        submitButton.dataset.minibrowserSubmitStatus = "true";
-        submitButton.addEventListener("click", () => setSubmitStatus("送信中"), true);
+      if (submitButton && !submitButton.dataset.minibrowserPostCapture) {
+        submitButton.dataset.minibrowserPostCapture = "true";
+        submitButton.addEventListener("click", capturePostState, true);
       }
 
       const formObserver = new MutationObserver(() => {
         clearEmail();
         disableFormPositionToggle();
         restoreSubmittedDraft();
+        notifyPostCompletion();
       });
       formObserver.observe(form, { childList: true, subtree: true, attributes: true });
 
@@ -645,35 +612,6 @@ enum CompactPageModeService {
         infos.forEach(info => {
           info.table.classList.toggle("minibrowser-own-response", own.has(info.number));
         });
-        applyFormPlacement();
-      }
-
-      function applyFormPlacement() {
-        if (!compose) return;
-        const latestOwnResponse = responseInfos()
-          .filter(info => info.table.classList.contains("minibrowser-own-response"))
-          .sort((left, right) => left.numericNumber - right.numericNumber)
-          .pop();
-
-        if (formPlacement === "bottom" && latestOwnResponse) {
-          compose.classList.add("minibrowser-form-at-bottom");
-          if (form.parentElement !== thread || form.previousElementSibling !== latestOwnResponse.table) {
-            latestOwnResponse.table.after(form);
-          }
-        } else {
-          compose.classList.remove("minibrowser-form-at-bottom");
-          if (form.parentElement !== compose) compose.appendChild(form);
-        }
-        updatePlacementToggle();
-      }
-
-      if (placementToggle && !placementToggle.dataset.minibrowserBound) {
-        placementToggle.dataset.minibrowserBound = "true";
-        placementToggle.addEventListener("click", () => {
-          formPlacement = formPlacement === "bottom" ? "top" : "bottom";
-          try { localStorage.setItem(formPlacementKey, formPlacement); } catch (_) {}
-          applyFormPlacement();
-        }, true);
       }
 
       if (!form.dataset.minibrowserOwnPostTracking) {
@@ -702,8 +640,24 @@ enum CompactPageModeService {
       }
 
       reconcileAndRender();
-      const observer = new MutationObserver(() => reconcileAndRender());
-      observer.observe(thread, { childList: true, subtree: true });
+        const responseObserver = new MutationObserver(() => reconcileAndRender());
+        responseObserver.observe(thread, { childList: true, subtree: true });
+        return true;
+      }
+
+      if (initializeCompactPage()) return;
+
+      let retryCount = 0;
+      const retryInitialization = () => {
+        retryCount += 1;
+        if (initializeCompactPage() || retryCount >= 20) {
+          retryObserver.disconnect();
+          clearInterval(retryTimer);
+        }
+      };
+      const retryObserver = new MutationObserver(retryInitialization);
+      retryObserver.observe(doc.documentElement, { childList: true, subtree: true });
+      const retryTimer = setInterval(retryInitialization, 100);
     })();
     """#
 

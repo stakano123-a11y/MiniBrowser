@@ -91,6 +91,11 @@ struct BrowserWebView: UIViewRepresentable {
                 guard let script = handwritingImageStore.restorationScript() else { return }
                 attachedWebView?.evaluateJavaScript(script)
 
+            case "postCompleted":
+                let canvasWasOpen = body["canvasWasOpen"] as? Bool ?? false
+                guard canvasWasOpen || handwritingImageStore.hasImage else { return }
+                attachedWebView?.evaluateJavaScript(CanvasImageSessionService.openExistingCanvasScript)
+
             default:
                 return
             }

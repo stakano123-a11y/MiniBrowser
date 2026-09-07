@@ -80,11 +80,11 @@ enum CanvasImageSessionService {
     static let openExistingCanvasScript = #"""
     (() => {
       "use strict";
-      if (document.querySelector("canvas#oejs, input#itgkfile")) return;
+      if (document.querySelector("canvas#oejs")) return;
       let clicked = false;
       let attempts = 0;
       const openExistingField = () => {
-        if (document.querySelector("canvas#oejs, input#itgkfile")) return;
+        if (document.querySelector("canvas#oejs")) return;
         attempts += 1;
         if (!clicked) {
           const trigger = Array.from(document.querySelectorAll("a, button, input[type='button'], input[type='submit']"))
@@ -94,7 +94,7 @@ enum CanvasImageSessionService {
             trigger.click();
           }
         }
-        if (attempts < 15 && !document.querySelector("canvas#oejs, input#itgkfile")) {
+        if (attempts < 15 && !document.querySelector("canvas#oejs")) {
           setTimeout(openExistingField, 120);
         }
       };

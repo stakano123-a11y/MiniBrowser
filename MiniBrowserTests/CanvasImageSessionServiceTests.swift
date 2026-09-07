@@ -31,6 +31,9 @@ final class CanvasImageSessionServiceTests: XCTestCase {
         XCTAssertTrue(restoration.contains("canvas#oejs"))
         XCTAssertTrue(CanvasImageSessionService.openExistingCanvasScript.contains("手書きjs"))
         XCTAssertTrue(CanvasImageSessionService.openExistingCanvasScript.contains("trigger.click()"))
+        XCTAssertTrue(CanvasImageSessionService.openExistingCanvasScript.contains(
+            "if (document.querySelector(\"canvas#oejs\")) return;"
+        ))
     }
 
     func testStoreRejectsUnsupportedAndCreatesNoCrossLaunchState() {

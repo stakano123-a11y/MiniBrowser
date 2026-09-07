@@ -35,10 +35,13 @@ final class CompactPageModeServiceTests: XCTestCase {
         XCTAssertTrue(script.contains("minibrowser-targetpage-comment-actions"))
         XCTAssertTrue(script.contains("modeHeader.classList.add(\"minibrowser-targetpage-page-extra\")"))
         XCTAssertTrue(script.contains("form.insertBefore(actions, formTable || form.firstChild)"))
-        XCTAssertTrue(script.contains("minibrowser-targetpage-submit-status"))
-        XCTAssertTrue(script.contains("setSubmitStatus(\"送信中\")"))
-        XCTAssertTrue(script.contains("MiniBrowser.TargetPageFormPlacement"))
-        XCTAssertTrue(script.contains("latestOwnResponse.table.after(form)"))
+        XCTAssertTrue(script.contains("#retmestip"))
+        XCTAssertFalse(script.contains("minibrowser-targetpage-submit-status"))
+        XCTAssertTrue(script.contains("localStorage.removeItem(\"MiniBrowser.TargetPageFormPlacement\")"))
+        XCTAssertFalse(script.contains("latestOwnResponse.table.after(form)"))
+        XCTAssertTrue(script.contains("initializeCompactPage"))
+        XCTAssertTrue(script.contains("minibrowserCompactInitialized"))
+        XCTAssertTrue(script.contains("retryCount >= 20"))
     }
 
     func testScriptIncludesGlobalDraftRetentionControls() {
@@ -48,7 +51,10 @@ final class CompactPageModeServiceTests: XCTestCase {
         XCTAssertTrue(script.contains("保持 ON"))
         XCTAssertTrue(script.contains("保持 OFF"))
         XCTAssertTrue(script.contains("localStorage.removeItem(draftTextKey)"))
-        XCTAssertTrue(script.contains("submittedDraft = textarea.value"))
+        XCTAssertTrue(script.contains("capturePostState"))
+        XCTAssertTrue(script.contains("submitButton.addEventListener(\"click\", capturePostState, true)"))
         XCTAssertTrue(script.contains("restoreSubmittedDraft"))
+        XCTAssertTrue(script.contains("userEditedAfterSubmission"))
+        XCTAssertTrue(script.contains("type: \"postCompleted\""))
     }
 }
